@@ -16,7 +16,7 @@ class ExpensesScreen extends ConsumerWidget {
         return ListTile(
           title: Text(e.title),
           subtitle: Text(e.category),
-          trailing: Text('\${e.amount.toStringAsFixed(2)}'),
+          trailing: const Text('\${e.amount.toStringAsFixed(2)}'),
         );
       },
     );
