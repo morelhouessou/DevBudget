@@ -15,6 +15,7 @@ dependencies:
   fl_chart: ^0.68.0
   intl: ^0.19.0
   uuid: ^4.4.0
+  currency_picker: ^2.0.22
 
 dev_dependencies:
   flutter_test:
