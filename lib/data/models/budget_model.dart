@@ -39,7 +39,7 @@ class BudgetModel extends HiveObject {
   bool isShared;
 
   /// Crée un nouveau budget.
-  ///
+
   /// [memberIds] et [isShared] sont optionnels : si `memberIds` est fourni
   /// et non vide, `isShared` sera automatiquement `true` sauf indication contraire.
 
@@ -55,6 +55,11 @@ class BudgetModel extends HiveObject {
   })  : memberIds = memberIds ?? [],
         isShared = isShared ?? (memberIds != null && memberIds.isNotEmpty);
 
+  /// Retourne une copie du budget avec les champs fournis remplacés.
+
+  /// Les champs non fournis conservent leur valeur actuelle.
+  /// `id` et `ownerId` ne sont volontairement pas modifiables ici :
+  /// l'identité et le créateur d'un budget ne changent pas après création.
   BudgetModel copyWith({
     String? name,
     double? totalAmount,
@@ -75,6 +80,7 @@ class BudgetModel extends HiveObject {
     );
   }
 
+  ///Deux budgets sont considérés égaux s'ils ont le même identifiant unique.
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -82,9 +88,11 @@ class BudgetModel extends HiveObject {
           runtimeType == other.runtimeType &&
           id == other.id;
 
+  /// Hash basé sur {id} pour garantir que deux budgets avec le même identifiant ont le même hash.
   @override
   int get hashCode => id.hashCode;
 
+  ///repésentation textuelle du budget pour faciliter le débogage et les logs.
   @override
   String toString() =>
       'BudgetModel(id: $id, name: $name, totalAmount: $totalAmount, startDate: $startDate, endDate: $endDate, ownerId: $ownerId, memberIds: $memberIds, isShared: $isShared)';
