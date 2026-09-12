@@ -22,13 +22,16 @@ class BudgetModelAdapter extends TypeAdapter<BudgetModel> {
       totalAmount: fields[2] as double,
       startDate: fields[3] as DateTime,
       endDate: fields[4] as DateTime,
+      ownerId: fields[5] as String,
+      memberIds: (fields[6] as List?)?.cast<String>(),
+      isShared: fields[7] as bool?,
     );
   }
 
   @override
   void write(BinaryWriter writer, BudgetModel obj) {
     writer
-      ..writeByte(5)
+      ..writeByte(8)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -38,7 +41,13 @@ class BudgetModelAdapter extends TypeAdapter<BudgetModel> {
       ..writeByte(3)
       ..write(obj.startDate)
       ..writeByte(4)
-      ..write(obj.endDate);
+      ..write(obj.endDate)
+      ..writeByte(5)
+      ..write(obj.ownerId)
+      ..writeByte(6)
+      ..write(obj.memberIds)
+      ..writeByte(7)
+      ..write(obj.isShared);
   }
 
   @override
