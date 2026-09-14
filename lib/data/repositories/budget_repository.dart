@@ -24,4 +24,41 @@ class BudgetRepository {
   Future<void> delete(String id) async {
     await _box.delete(id);
   }
+
+  /// Ajoute [memberId] à la liste des membres ayant accès au budget [budgetId].
+  ///
+  /// Ne fait rien si le budget n'existe pas, ou si le membre est déjà présent
+  /// dans la liste (évite les doublons). Met automatiquement `isShared` à `true`.
+  Future<void> addMember(String budgetId, String memberId) async {
+    final budget = getById(budgetId);
+    if (budget == null) return;
+
+    if (budget.memberIds.contains(memberId)) return;
+
+    final updatedMemberIds = [...budget.memberIds, memberId];
+    final updatedBudget = budget.copyWith(
+      memberIds: updatedMemberIds,
+      isShared: true,
+    );
+
+    await _box.put(budgetId, updatedBudget);
+  }
+
+  /// Retire [memberId] de la liste des membres ayant accès au budget [budgetId].
+  ///
+  /// Ne fait rien si le budget n'existe pas. Remet automatiquement `isShared`
+  /// à `false` si la liste des membres devient vide après le retrait.
+  Future<void> removeMember(String budgetId, String memberId) async {
+    final budget = getById(budgetId);
+    if (budget == null) return;
+
+    final updatedMemberIds =
+        budget.memberIds.where((id) => id != memberId).toList();
+    final updatedBudget = budget.copyWith(
+      memberIds: updatedMemberIds,
+      isShared: updatedMemberIds.isNotEmpty,
+    );
+
+    await _box.put(budgetId, updatedBudget);
+  }
 }
