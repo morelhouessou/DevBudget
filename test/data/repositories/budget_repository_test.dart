@@ -102,5 +102,64 @@ void main() {
       expect(budgetRepository.getById('1'), isNull);
       expect(budgetRepository.getAll(), isEmpty);
     });
+
+    test('addMember adds a member and sets isShared to true', () async {
+      final budget = BudgetModel(
+        id: '1',
+        name: 'Budget Test 1',
+        totalAmount: 500.0,
+        startDate: DateTime(2026, 1, 1),
+        endDate: DateTime(2026, 1, 31),
+        ownerId: 'owner1',
+      );
+
+      await budgetRepository.add(budget);
+      await budgetRepository.addMember('1', 'member2');
+
+      final updated = budgetRepository.getById('1');
+
+      expect(updated!.memberIds, contains('member2'));
+      expect(updated.isShared, isTrue);
+    });
+
+    test('addMember does not duplicate an existing member', () async {
+      final budget = BudgetModel(
+        id: '1',
+        name: 'Budget Test 1',
+        totalAmount: 500.0,
+        startDate: DateTime(2026, 1, 1),
+        endDate: DateTime(2026, 1, 31),
+        ownerId: 'owner1',
+        memberIds: ['member2'],
+      );
+
+      await budgetRepository.add(budget);
+      await budgetRepository.addMember('1', 'member2');
+
+      final updated = budgetRepository.getById('1');
+
+      expect(updated!.memberIds.where((id) => id == 'member2').length, 1);
+    });
+
+    test('removeMember removes a member and resets isShared when empty',
+        () async {
+      final budget = BudgetModel(
+        id: '1',
+        name: 'Budget Test 1',
+        totalAmount: 500.0,
+        startDate: DateTime(2026, 1, 1),
+        endDate: DateTime(2026, 1, 31),
+        ownerId: 'owner1',
+        memberIds: ['member2'],
+      );
+
+      await budgetRepository.add(budget);
+      await budgetRepository.removeMember('1', 'member2');
+
+      final updated = budgetRepository.getById('1');
+
+      expect(updated!.memberIds, isEmpty);
+      expect(updated.isShared, isFalse);
+    });
   });
 }
