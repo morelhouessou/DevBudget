@@ -19,7 +19,7 @@ class MemberModelAdapter extends TypeAdapter<MemberModel> {
     return MemberModel(
       id: fields[0] as String,
       name: fields[1] as String,
-      role: fields[2] as String,
+      role: fields[2] as MemberRole,
     );
   }
 
@@ -42,6 +42,50 @@ class MemberModelAdapter extends TypeAdapter<MemberModel> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is MemberModelAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class MemberRoleAdapter extends TypeAdapter<MemberRole> {
+  @override
+  final int typeId = 3;
+
+  @override
+  MemberRole read(BinaryReader reader) {
+    switch (reader.readByte()) {
+      case 0:
+        return MemberRole.admin;
+      case 1:
+        return MemberRole.member;
+      case 2:
+        return MemberRole.viewer;
+      default:
+        return MemberRole.admin;
+    }
+  }
+
+  @override
+  void write(BinaryWriter writer, MemberRole obj) {
+    switch (obj) {
+      case MemberRole.admin:
+        writer.writeByte(0);
+        break;
+      case MemberRole.member:
+        writer.writeByte(1);
+        break;
+      case MemberRole.viewer:
+        writer.writeByte(2);
+        break;
+    }
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MemberRoleAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }
