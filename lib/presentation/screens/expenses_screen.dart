@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../data/models/expense_model.dart';
 import '../../logic/providers/expense_provider.dart';
 import 'home_screen.dart';
 import '../widgets/expense_tile.dart';
@@ -78,9 +79,11 @@ class ExpensesScreen extends ConsumerWidget {
                     color: Theme.of(context).colorScheme.errorContainer,
                     child: const Icon(Icons.delete_outline),
                   ),
-                  onDismissed: (_) => ref
-                      .read(expenseListProvider.notifier)
-                      .deleteExpense(expense.id),
+                  onDismissed: (_) async {
+                    await ref
+                        .read(expenseListProvider.notifier)
+                        .deleteExpense(expense.id);
+                  },
                   child: ExpenseTile(
                     title: expense.title,
                     category: expense.category,
@@ -172,15 +175,19 @@ class ExpensesScreen extends ConsumerWidget {
               FilledButton.icon(
                 onPressed: () async {
                   if (!formKey.currentState!.validate()) return;
-                  await ref
-                      .read(expenseListProvider.notifier)
-                      .addExpenseFromForm(
-                        title: titleController.text.trim(),
-                        amount: double.parse(
-                            amountController.text.replaceAll(',', '.')),
-                        category: category,
-                        date: date,
-                      );
+
+                  await ref.read(expenseListProvider.notifier).addExpense(
+                    ExpenseModel(
+                      id: DateTime.now().microsecondsSinceEpoch.toString(),
+                      title: titleController.text.trim(),
+                      amount: double.parse(
+                          amountController.text.replaceAll(',', '.')),
+                      category: category,
+                      date: date,
+                      memberId: 'personal',
+                    ),
+                  );
+
                   if (!sheetContext.mounted) return;
                   Navigator.pop(sheetContext);
                 },

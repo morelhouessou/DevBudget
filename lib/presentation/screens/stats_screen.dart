@@ -4,11 +4,38 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/models/expense_model.dart';
 import '../../logic/providers/expense_provider.dart';
 import 'home_screen.dart';
 
 class StatsScreen extends ConsumerWidget {
   const StatsScreen({super.key});
+
+  static Map<String, double> _totalsByCategory(List<ExpenseModel> expenses) {
+    final result = <String, double>{};
+    for (final expense in expenses) {
+      result.update(expense.category, (value) => value + expense.amount,
+          ifAbsent: () => expense.amount);
+    }
+    return result;
+  }
+
+  static Map<DateTime, double> _totalsByMonth(List<ExpenseModel> expenses) {
+    final now = DateTime.now();
+    final result = <DateTime, double>{
+      for (var index = 5; index >= 0; index--)
+        DateTime(now.year, now.month - index): 0,
+    };
+
+    for (final expense in expenses) {
+      final month = DateTime(expense.date.year, expense.date.month);
+      if (result.containsKey(month)) {
+        result[month] = result[month]! + expense.amount;
+      }
+    }
+
+    return result;
+  }
 
   static const _categoryColors = [
     Color(0xff176b87),
@@ -22,12 +49,10 @@ class StatsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final expenses = ref.watch(expenseListProvider);
-    final expenseNotifier = ref.read(expenseListProvider.notifier);
     final currency = CurrencyScope.of(context);
-    final total =
-        expenses.fold<double>(0, (sum, expense) => sum + expense.amount);
-    final categories = expenseNotifier.totalsByCategory;
-    final months = expenseNotifier.totalsByMonth();
+    final total = ref.watch(totalExpensesProvider);
+    final categories = ref.watch(expensesByCategoryProvider);
+    final months = _totalsByMonth(expenses);
     final topCategory = categories.entries.isEmpty
         ? null
         : (categories.entries.toList()

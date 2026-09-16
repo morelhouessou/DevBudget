@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../data/models/budget_model.dart';
 import '../../logic/providers/budget_provider.dart';
 import 'home_screen.dart';
 
@@ -53,9 +54,11 @@ class BudgetScreen extends ConsumerWidget {
                     color: Theme.of(context).colorScheme.errorContainer,
                     child: const Icon(Icons.delete_outline),
                   ),
-                  onDismissed: (_) => ref
-                      .read(budgetListProvider.notifier)
-                      .deleteBudget(budget.id),
+                  onDismissed: (_) async {
+                    await ref
+                        .read(budgetListProvider.notifier)
+                        .deleteBudget(budget.id);
+                  },
                   child: Card(
                     child: ListTile(
                       leading: const CircleAvatar(
@@ -124,13 +127,17 @@ class BudgetScreen extends ConsumerWidget {
               onPressed: () async {
                 if (!formKey.currentState!.validate()) return;
                 final now = DateTime.now();
-                await ref.read(budgetListProvider.notifier).addBudgetFromForm(
-                      name: nameController.text.trim(),
-                      totalAmount: double.parse(
-                          amountController.text.replaceAll(',', '.')),
-                      startDate: DateTime(now.year, now.month, 1),
-                      endDate: DateTime(now.year, now.month + 1, 0),
-                    );
+                await ref.read(budgetListProvider.notifier).addBudget(
+                  BudgetModel(
+                    id: DateTime.now().microsecondsSinceEpoch.toString(),
+                    name: nameController.text.trim(),
+                    totalAmount: double.parse(
+                        amountController.text.replaceAll(',', '.')),
+                    startDate: DateTime(now.year, now.month, 1),
+                    endDate: DateTime(now.year, now.month + 1, 0),
+                  ),
+                );
+
                 if (!sheetContext.mounted) return;
                 Navigator.pop(sheetContext);
               },
