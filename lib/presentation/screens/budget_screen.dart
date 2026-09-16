@@ -16,7 +16,7 @@ class BudgetScreen extends ConsumerWidget {
         return ListTile(
           title: Text(b.name),
           subtitle: Text('${b.startDate} - ${b.endDate}'),
-          trailing: Text('${b.totalAmount.toStringAsFixed(2)}'),
+          trailing: const Text('{b.totalAmount.toStringAsFixed(2)}'),
         );
       },
     );

@@ -10,7 +10,7 @@ class ExpenseTile extends StatelessWidget {
     return ListTile(
       title: Text(expense.title),
       subtitle: Text(expense.category),
-      trailing: Text('\${expense.amount.toStringAsFixed(2)}'),
+      trailing: const Text('\${expense.amount.toStringAsFixed(2)}'),
     );
   }
 }

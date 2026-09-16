@@ -20,12 +20,14 @@ class StatsScreen extends ConsumerWidget {
 
     final categoryTotals = totalsByCategory(expenses);
     final monthlyTotals = totalsByMonth(expenses);
-    final total = expenses.fold<double>(0, (sum, expense) => sum + expense.amount);
+    final total =
+        expenses.fold<double>(0, (sum, expense) => sum + expense.amount);
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
       children: [
-        Text('Vue d\'ensemble', style: Theme.of(context).textTheme.headlineSmall),
+        Text('Vue d\'ensemble',
+            style: Theme.of(context).textTheme.headlineSmall),
         const SizedBox(height: 4),
         Text(
           '${total.toStringAsFixed(2)} EUR depenses',
@@ -220,10 +222,12 @@ class _MonthlyChart extends StatelessWidget {
           alignment: BarChartAlignment.spaceAround,
           gridData: const FlGridData(show: false),
           borderData: FlBorderData(show: false),
-          barTouchData: BarTouchData(enabled: true),
+          barTouchData: const BarTouchData(enabled: true),
           titlesData: FlTitlesData(
-            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
             leftTitles: const AxisTitles(
               sideTitles: SideTitles(showTitles: true, reservedSize: 42),
             ),
@@ -236,7 +240,8 @@ class _MonthlyChart extends StatelessWidget {
                   if (index < 0 || index >= totals.length) {
                     return const SizedBox.shrink();
                   }
-                  final month = DateTime(firstMonth.year, firstMonth.month + index);
+                  final month =
+                      DateTime(firstMonth.year, firstMonth.month + index);
                   return SideTitleWidget(
                     meta: meta,
                     child: Text(_monthLabels[month.month - 1]),
@@ -254,7 +259,8 @@ class _MonthlyChart extends StatelessWidget {
                     toY: totals[index],
                     width: 18,
                     color: scheme.primary,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                    borderRadius:
+                        const BorderRadius.vertical(top: Radius.circular(4)),
                   ),
                 ],
               ),
