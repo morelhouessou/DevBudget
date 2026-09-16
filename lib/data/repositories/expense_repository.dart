@@ -6,14 +6,20 @@ class ExpenseRepository {
 
   List<ExpenseModel> getAll() => _box.values.toList();
 
+  /// Retourne la dépense correspondant à [id], ou `null` s'il n'existe pas.
+  ExpenseModel? getById(String id) => _box.get(id);
+
+  /// Ajoute (ou remplace si l'id existe déjà) une dépense dans la box.
   Future<void> add(ExpenseModel expense) async {
     await _box.put(expense.id, expense);
   }
 
+  /// Supprime la dépense correspondant à [id] de la box.
   Future<void> delete(String id) async {
     await _box.delete(id);
   }
 
+  /// Met à jour une dépense déjà présente dans la box.
   Future<void> update(ExpenseModel expense) async {
     await expense.save();
   }

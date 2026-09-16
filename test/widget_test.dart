@@ -1,30 +1,37 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
+import 'dart:io';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-
+import 'package:hive/hive.dart';
 import 'package:devbudget/main.dart';
+import 'package:devbudget/data/models/expense_model.dart';
+import 'package:devbudget/data/models/budget_model.dart';
+import 'package:devbudget/data/models/member_model.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  setUpAll(() async {
+    final tempDir = Directory.systemTemp.createTempSync('hive_test');
+    Hive.init(tempDir.path);
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    Hive.registerAdapter(ExpenseModelAdapter());
+    Hive.registerAdapter(BudgetModelAdapter());
+    Hive.registerAdapter(MemberModelAdapter());
+    Hive.registerAdapter(MemberRoleAdapter());
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    await Hive.openBox<ExpenseModel>('expenses');
+    await Hive.openBox<BudgetModel>('budgets');
+    await Hive.openBox<MemberModel>('members');
+  });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  tearDownAll(() async {
+    await Hive.close();
+  });
+
+  testWidgets('DevBudgetApp se lance sans erreur', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const ProviderScope(child: DevBudgetApp()),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(DevBudgetApp), findsOneWidget);
   });
 }
