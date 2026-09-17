@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,15 +8,6 @@ import 'home_screen.dart';
 
 class StatsScreen extends ConsumerWidget {
   const StatsScreen({super.key});
-
-  static Map<String, double> _totalsByCategory(List<ExpenseModel> expenses) {
-    final result = <String, double>{};
-    for (final expense in expenses) {
-      result.update(expense.category, (value) => value + expense.amount,
-          ifAbsent: () => expense.amount);
-    }
-    return result;
-  }
 
   static Map<DateTime, double> _totalsByMonth(List<ExpenseModel> expenses) {
     final now = DateTime.now();
@@ -110,7 +99,13 @@ class StatsScreen extends ConsumerWidget {
           _ChartCard(
             title: 'Évolution mensuelle',
             subtitle: 'Les six derniers mois',
-            child: SizedBox(height: 230, child: _MonthlyChart(data: months)),
+            child: SizedBox(
+              height: 230,
+              child: _MonthlyBarChart(
+                data: months,
+                currencyCode: currency.code,
+              ),
+            ),
           ),
         ],
       ],
@@ -123,8 +118,11 @@ class _MetricCard extends StatelessWidget {
   final String label;
   final String value;
 
-  const _MetricCard(
-      {required this.icon, required this.label, required this.value});
+  const _MetricCard({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
 
   @override
   Widget build(BuildContext context) => Card(
@@ -137,10 +135,12 @@ class _MetricCard extends StatelessWidget {
               const SizedBox(height: 12),
               Text(label, style: Theme.of(context).textTheme.labelMedium),
               const SizedBox(height: 4),
-              Text(value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleMedium),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
             ],
           ),
         ),
@@ -152,8 +152,11 @@ class _ChartCard extends StatelessWidget {
   final String subtitle;
   final Widget child;
 
-  const _ChartCard(
-      {required this.title, required this.subtitle, required this.child});
+  const _ChartCard({
+    required this.title,
+    required this.subtitle,
+    required this.child,
+  });
 
   @override
   Widget build(BuildContext context) => Card(
@@ -208,8 +211,8 @@ class _CategoryLegend extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.only(left: 8),
       children: data.entries.toList().asMap().entries.map((entry) {
-        final color = StatsScreen
-            ._categoryColors[entry.key % StatsScreen._categoryColors.length];
+        final color = StatsScreen._categoryColors[
+            entry.key % StatsScreen._categoryColors.length];
         final percentage = total == 0 ? 0 : entry.value.value / total * 100;
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 5),
@@ -218,10 +221,16 @@ class _CategoryLegend extends StatelessWidget {
               Container(width: 10, height: 10, color: color),
               const SizedBox(width: 8),
               Expanded(
-                  child: Text(entry.value.key,
-                      maxLines: 1, overflow: TextOverflow.ellipsis)),
-              Text('${percentage.toStringAsFixed(0)}%',
-                  style: Theme.of(context).textTheme.labelMedium),
+                child: Text(
+                  entry.value.key,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Text(
+                '${percentage.toStringAsFixed(0)}%',
+                style: Theme.of(context).textTheme.labelMedium,
+              ),
             ],
           ),
         );
@@ -230,104 +239,23 @@ class _CategoryLegend extends StatelessWidget {
   }
 }
 
-class _MonthlyChart extends StatelessWidget {
+class _MonthlyBarChart extends StatelessWidget {
   final Map<DateTime, double> data;
-  static const _monthLabels = [
-    'janv.',
-    'févr.',
-    'mars',
-    'avr.',
-    'mai',
-    'juin',
-    'juil.',
-    'août',
-    'sept.',
-    'oct.',
-    'nov.',
-    'déc.',
-  ];
+  final String currencyCode;
 
-  const _MonthlyChart({required this.data});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final expenses = ref.watch(expenseListProvider);
-
-    if (expenses.isEmpty) {
-      return const Center(
-        child: Text('Ajoutez une depense pour voir vos statistiques.'),
-      );
-    }
-
-    final categoryTotals = totalsByCategory(expenses);
-    final monthlyTotals = totalsByMonth(expenses);
-    final total =
-        expenses.fold<double>(0, (sum, expense) => sum + expense.amount);
-
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
-      children: [
-        Text('Vue d\'ensemble',
-            style: Theme.of(context).textTheme.headlineSmall),
-        const SizedBox(height: 4),
-        Text(
-          '${total.toStringAsFixed(2)} EUR depenses',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        const SizedBox(height: 24),
-        _ChartPanel(
-          title: 'Depenses par categorie',
-          child: _CategoryChart(totals: categoryTotals, total: total),
-        ),
-        const SizedBox(height: 16),
-        _ChartPanel(
-          title: 'Depenses par mois',
-          child: _MonthlyChart(totals: monthlyTotals),
-        ),
-      ],
-    );
-  }
-}
-
-Map<String, double> totalsByCategory(List<ExpenseModel> expenses) {
-  final totals = <String, double>{};
-  for (final expense in expenses) {
-    totals.update(
-      expense.category,
-      (value) => value + expense.amount,
-      ifAbsent: () => expense.amount,
-    );
-  }
-  return totals;
-}
-
-List<double> totalsByMonth(List<ExpenseModel> expenses) {
-  final now = DateTime.now();
-  final firstMonth = DateTime(now.year, now.month - 5);
-  final totals = List<double>.filled(6, 0);
-
-  for (final expense in expenses) {
-    final monthIndex = (expense.date.year - firstMonth.year) * 12 +
-        expense.date.month -
-        firstMonth.month;
-    if (monthIndex >= 0 && monthIndex < totals.length) {
-      totals[monthIndex] += expense.amount;
-    }
-  }
-  return totals;
-}
-
-class _ChartPanel extends StatelessWidget {
-  const _ChartPanel({required this.title, required this.child});
-
-  final String title;
-  final Widget child;
+  const _MonthlyBarChart({
+    required this.data,
+    required this.currencyCode,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final maxValue = data.values.fold<double>(0, math.max);
+    final sortedDates = data.keys.toList()..sort();
+    final maxValue = sortedDates.fold<double>(0, (max, date) {
+      final value = data[date] ?? 0;
+      return value > max ? value : max;
+    });
     final ceiling = maxValue == 0 ? 100.0 : maxValue * 1.25;
-    final months = data.keys.toList();
 
     return BarChart(
       BarChartData(
@@ -337,45 +265,35 @@ class _ChartPanel extends StatelessWidget {
         borderData: FlBorderData(show: false),
         barTouchData: BarTouchData(
           touchTooltipData: BarTouchTooltipData(
-            getTooltipItem: (group, groupIndex, rod, rodIndex) =>
-                BarTooltipItem(
-              '${rod.toY.toStringAsFixed(2)} ${CurrencyScope.of(context).code}',
+            getTooltipItem: (group, groupIndex, rod, rodIndex) => BarTooltipItem(
+              '${rod.toY.toStringAsFixed(2)} $currencyCode',
               const TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
         ),
         titlesData: FlTitlesData(
-          leftTitles:
-              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles:
-              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          topTitles:
-              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              getTitlesWidget: (value, meta) {
-                final index = value.toInt();
-                if (index < 0 || index >= months.length) {
-                  return const SizedBox();
-                }
-                return SideTitleWidget(
-                  axisSide: meta.axisSide,
-                  child: Text(
-                    _monthLabels[months[index].month - 1],
-                    style: Theme.of(context).textTheme.labelSmall,
-                  ),
-                );
-              },
-            ),
+          leftTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          rightTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          topTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          bottomTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
           ),
         ),
-        barGroups: data.entries.toList().asMap().entries.map((entry) {
+        barGroups: sortedDates.asMap().entries.map((entry) {
+          final index = entry.key;
+          final date = entry.value;
+          final value = data[date] ?? 0;
           return BarChartGroupData(
-            x: entry.key,
+            x: index,
             barRods: [
               BarChartRodData(
-                toY: entry.value.value,
+                toY: value,
                 width: 18,
                 borderRadius: BorderRadius.circular(4),
                 color: Theme.of(context).colorScheme.primary,

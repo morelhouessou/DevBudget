@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../data/models/member_model.dart';
 import '../../logic/providers/member_provider.dart';
 import 'home_screen.dart';
 
@@ -88,7 +90,7 @@ class TeamScreen extends ConsumerWidget {
           ...members.map((member) => _MemberTile(
                 id: member.id,
                 name: member.name,
-                role: member.role,
+                role: member.role.label,
                 currencyCode: currency.code,
                 spent: memberNotifier.spentByMember(member.id),
                 onDelete: () => memberNotifier.deleteMember(member.id),
@@ -169,7 +171,7 @@ class TeamScreen extends ConsumerWidget {
                 if (name.isEmpty) return;
                 await ref.read(memberListProvider.notifier).addMember(
                       name: name,
-                      role: 'Membre actif',
+                      role: MemberRole.member,
                     );
                 if (!sheetContext.mounted) return;
                 Navigator.pop(sheetContext);
