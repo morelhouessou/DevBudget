@@ -211,8 +211,8 @@ class _CategoryLegend extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.only(left: 8),
       children: data.entries.toList().asMap().entries.map((entry) {
-        final color = StatsScreen._categoryColors[
-            entry.key % StatsScreen._categoryColors.length];
+        final color = StatsScreen
+            ._categoryColors[entry.key % StatsScreen._categoryColors.length];
         final percentage = total == 0 ? 0 : entry.value.value / total * 100;
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 5),
@@ -265,23 +265,24 @@ class _MonthlyBarChart extends StatelessWidget {
         borderData: FlBorderData(show: false),
         barTouchData: BarTouchData(
           touchTooltipData: BarTouchTooltipData(
-            getTooltipItem: (group, groupIndex, rod, rodIndex) => BarTooltipItem(
+            getTooltipItem: (group, groupIndex, rod, rodIndex) =>
+                BarTooltipItem(
               '${rod.toY.toStringAsFixed(2)} $currencyCode',
               const TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
         ),
-        titlesData: FlTitlesData(
-          leftTitles: const AxisTitles(
+        titlesData: const FlTitlesData(
+          leftTitles: AxisTitles(
             sideTitles: SideTitles(showTitles: false),
           ),
-          rightTitles: const AxisTitles(
+          rightTitles: AxisTitles(
             sideTitles: SideTitles(showTitles: false),
           ),
-          topTitles: const AxisTitles(
+          topTitles: AxisTitles(
             sideTitles: SideTitles(showTitles: false),
           ),
-          bottomTitles: const AxisTitles(
+          bottomTitles: AxisTitles(
             sideTitles: SideTitles(showTitles: false),
           ),
         ),
