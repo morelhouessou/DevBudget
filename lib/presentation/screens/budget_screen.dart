@@ -135,6 +135,7 @@ class BudgetScreen extends ConsumerWidget {
                         amountController.text.replaceAll(',', '.')),
                     startDate: DateTime(now.year, now.month, 1),
                     endDate: DateTime(now.year, now.month + 1, 0),
+                    ownerId: 'local-user',
                   ),
                 );
 

@@ -41,7 +41,10 @@ class MemberNotifier extends StateNotifier<List<MemberModel>> {
         .fold<double>(0, (total, expense) => total + expense.amount);
   }
 
-  Future<void> addMember({required String name, required String role}) async {
+  Future<void> addMember({
+    required String name,
+    required MemberRole role,
+  }) async {
     final member = MemberModel(
       id: const Uuid().v4(),
       name: name,
