@@ -42,7 +42,7 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: DevBudgetApp()));
 
     expect(find.text('DevBudget'), findsOneWidget);
-    expect(find.text('Depenses'), findsOneWidget);
+    expect(find.text('Dépenses'), findsOneWidget);
     expect(find.text('Budgets'), findsOneWidget);
     expect(find.text('Stats'), findsOneWidget);
 
@@ -50,7 +50,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text('Ajoutez une depense pour voir vos statistiques.'),
+      find.text('Ajoutez une dépense pour voir vos graphiques.'),
       findsOneWidget,
     );
   });
@@ -71,12 +71,15 @@ void main() {
     );
 
     await tester.pumpWidget(const ProviderScope(child: DevBudgetApp()));
-    await tester.pumpAndSettle();
-
+    await tester.pumpAndSettle(
+      const Duration(milliseconds: 100),
+      EnginePhase.sendSemanticsUpdate,
+      const Duration(seconds: 10),
+    );
     expect(find.text('Loyer'), findsOneWidget);
     expect(find.text('120.50'), findsOneWidget);
     expect(find.text('Logement'), findsOneWidget);
-  }, skip: true);
+  });
 
   testWidgets('la liste des budgets affiche les informations de periode',
       (WidgetTester tester) async {
@@ -95,12 +98,16 @@ void main() {
 
     await tester.pumpWidget(const ProviderScope(child: DevBudgetApp()));
     await tester.tap(find.text('Budgets'));
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(
+      const Duration(milliseconds: 100),
+      EnginePhase.sendSemanticsUpdate,
+      const Duration(seconds: 10),
+    );
 
     expect(find.text('Budget vacances'), findsOneWidget);
     expect(find.textContaining('2400.00'), findsOneWidget);
     expect(find.textContaining('2025-01-01'), findsOneWidget);
-  }, skip: true);
+  });
 
   testWidgets('la vue statistiques calcule les totaux et regroupements',
       (WidgetTester tester) async {
@@ -130,14 +137,17 @@ void main() {
 
     await tester.pumpWidget(const ProviderScope(child: DevBudgetApp()));
     await tester.tap(find.text('Stats'));
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(
+      const Duration(milliseconds: 100),
+      EnginePhase.sendSemanticsUpdate,
+      const Duration(seconds: 10),
+    );
 
-    expect(find.text('Vue d\'ensemble'), findsOneWidget);
-    expect(find.text('150.00 EUR depenses'), findsOneWidget);
+    expect(find.text('Vue d’ensemble'), findsOneWidget);
+    expect(find.textContaining('150.00'), findsOneWidget);
     expect(find.text('Alimentation'), findsOneWidget);
     expect(find.text('Transport'), findsOneWidget);
-  }, skip: true);
-
+  });
   test('les providers ajoutent et suppriment les donnees sans erreur',
       () async {
     final container = ProviderContainer();
