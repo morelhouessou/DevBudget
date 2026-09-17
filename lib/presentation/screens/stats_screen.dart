@@ -250,6 +250,80 @@ class _MonthlyChart extends StatelessWidget {
   const _MonthlyChart({required this.data});
 
   @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final expenses = ref.watch(expenseListProvider);
+
+    if (expenses.isEmpty) {
+      return const Center(
+        child: Text('Ajoutez une depense pour voir vos statistiques.'),
+      );
+    }
+
+    final categoryTotals = totalsByCategory(expenses);
+    final monthlyTotals = totalsByMonth(expenses);
+    final total =
+        expenses.fold<double>(0, (sum, expense) => sum + expense.amount);
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
+      children: [
+        Text('Vue d\'ensemble',
+            style: Theme.of(context).textTheme.headlineSmall),
+        const SizedBox(height: 4),
+        Text(
+          '${total.toStringAsFixed(2)} EUR depenses',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 24),
+        _ChartPanel(
+          title: 'Depenses par categorie',
+          child: _CategoryChart(totals: categoryTotals, total: total),
+        ),
+        const SizedBox(height: 16),
+        _ChartPanel(
+          title: 'Depenses par mois',
+          child: _MonthlyChart(totals: monthlyTotals),
+        ),
+      ],
+    );
+  }
+}
+
+Map<String, double> totalsByCategory(List<ExpenseModel> expenses) {
+  final totals = <String, double>{};
+  for (final expense in expenses) {
+    totals.update(
+      expense.category,
+      (value) => value + expense.amount,
+      ifAbsent: () => expense.amount,
+    );
+  }
+  return totals;
+}
+
+List<double> totalsByMonth(List<ExpenseModel> expenses) {
+  final now = DateTime.now();
+  final firstMonth = DateTime(now.year, now.month - 5);
+  final totals = List<double>.filled(6, 0);
+
+  for (final expense in expenses) {
+    final monthIndex = (expense.date.year - firstMonth.year) * 12 +
+        expense.date.month -
+        firstMonth.month;
+    if (monthIndex >= 0 && monthIndex < totals.length) {
+      totals[monthIndex] += expense.amount;
+    }
+  }
+  return totals;
+}
+
+class _ChartPanel extends StatelessWidget {
+  const _ChartPanel({required this.title, required this.child});
+
+  final String title;
+  final Widget child;
+
+  @override
   Widget build(BuildContext context) {
     final maxValue = data.values.fold<double>(0, math.max);
     final ceiling = maxValue == 0 ? 100.0 : maxValue * 1.25;

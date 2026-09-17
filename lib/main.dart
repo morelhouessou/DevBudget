@@ -14,6 +14,7 @@ Future<void> main() async {
   Hive.registerAdapter(ExpenseModelAdapter());
   Hive.registerAdapter(BudgetModelAdapter());
   Hive.registerAdapter(MemberModelAdapter());
+  Hive.registerAdapter(MemberRoleAdapter());
 
   await Hive.openBox<ExpenseModel>('expenses');
   await Hive.openBox<BudgetModel>('budgets');
