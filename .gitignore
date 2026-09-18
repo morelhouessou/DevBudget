@@ -3,3 +3,4 @@
 .flutter-plugins-dependencies
 .packages
 build/
+.hive_test_tmp/
