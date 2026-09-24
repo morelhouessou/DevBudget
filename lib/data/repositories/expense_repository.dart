@@ -21,6 +21,6 @@ class ExpenseRepository {
 
   /// Met à jour une dépense déjà présente dans la box.
   Future<void> update(ExpenseModel expense) async {
-    await expense.save();
+    await _box.put(expense.id, expense);
   }
 }

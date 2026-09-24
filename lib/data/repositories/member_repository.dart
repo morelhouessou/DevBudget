@@ -19,11 +19,9 @@ class MemberRepository {
 
   /// Met à jour un membre déjà présent dans la box.
   ///
-  /// Nécessite que [member] ait été récupéré depuis la box (via [getAll]
-  /// ou [getById]), car `.save()` s'appuie sur la référence Hive interne
-  /// de l'objet.
+  /// Écrit par clé : fonctionne aussi pour une copie issue de `copyWith`.
   Future<void> update(MemberModel member) async {
-    await member.save();
+    await _box.put(member.id, member);
   }
 
   /// Supprime le membre correspondant à [id] de la box.

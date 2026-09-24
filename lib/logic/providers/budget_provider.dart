@@ -40,21 +40,30 @@ class BudgetNotifier extends StateNotifier<List<BudgetModel>> {
 
 // Calculs derives (logique metier)
 
-// Hypothese de liaison budget <-> depenses : ExpenseModel n'a pas de champ
-// budgetId (cf. Lot 1). Une depense est donc rattachee a un budget si sa
-// date tombe dans la periode [startDate, endDate] de ce budget. A valider
-// avec le reste de l'equipe si un lien explicite est prefere plus tard.
+// Liaison budget <-> depenses : si la depense porte un `budgetId`, elle
+// appartient a ce budget uniquement. Sinon (anciennes depenses), elle est
+// rattachee par la periode [startDate, endDate] du budget.
 
-/// Depenses qui tombent dans la periode d'un budget donne.
+/// Depenses rattachees a [budget] parmi [expenses] (fonction pure : l'UI
+/// l'appelle directement pour reagir aussi aux modifications du budget).
+List<ExpenseModel> expensesOfBudget(
+    BudgetModel budget, List<ExpenseModel> expenses) {
+  return expenses.where((e) {
+    if (e.budgetId != null) return e.budgetId == budget.id;
+    return !e.date.isBefore(budget.startDate) &&
+        !e.date.isAfter(budget.endDate);
+  }).toList();
+}
+
+/// Montant depense dans [budget] parmi [expenses].
+double spentOfBudget(BudgetModel budget, List<ExpenseModel> expenses) =>
+    expensesOfBudget(budget, expenses)
+        .fold<double>(0.0, (sum, e) => sum + e.amount);
+
+/// Depenses rattachees a un budget donne.
 final expensesForBudgetProvider =
-    Provider.family<List<ExpenseModel>, BudgetModel>((ref, budget) {
-  final expenses = ref.watch(expenseListProvider);
-  return expenses
-      .where((e) =>
-          !e.date.isBefore(budget.startDate) &&
-          !e.date.isAfter(budget.endDate))
-      .toList();
-});
+    Provider.family<List<ExpenseModel>, BudgetModel>((ref, budget) =>
+        expensesOfBudget(budget, ref.watch(expenseListProvider)));
 
 /// Montant total deja depense dans le cadre d'un budget donne.
 final spentForBudgetProvider =

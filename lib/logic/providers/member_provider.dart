@@ -54,6 +54,14 @@ class MemberNotifier extends StateNotifier<List<MemberModel>> {
     state = _box.values.toList();
   }
 
+  Future<void> updateMember(MemberModel member) async {
+    await _box.put(member.id, member);
+    state = _box.values.toList();
+  }
+
+  int countByRole(MemberRole role) =>
+      state.where((member) => member.role == role).length;
+
   Future<void> deleteMember(String id) async {
     await _box.delete(id);
     state = _box.values.toList();

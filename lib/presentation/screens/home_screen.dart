@@ -4,24 +4,9 @@ import 'expenses_screen.dart';
 import 'budget_screen.dart';
 import 'stats_screen.dart';
 import 'team_screen.dart';
+import '../currency_scope.dart';
 
-class CurrencyScope extends InheritedNotifier<ValueNotifier<Currency>> {
-  const CurrencyScope({
-    super.key,
-    required ValueNotifier<Currency> notifier,
-    required super.child,
-  }) : super(notifier: notifier);
-
-  static Currency of(BuildContext context) {
-    final scope = context.dependOnInheritedWidgetOfExactType<CurrencyScope>();
-    return scope!.notifier!.value;
-  }
-
-  static void update(BuildContext context, Currency currency) {
-    final scope = context.findAncestorWidgetOfExactType<CurrencyScope>();
-    scope?.notifier?.value = currency;
-  }
-}
+export '../currency_scope.dart';
 
 class HomeScreen extends StatefulWidget {
   final bool isDarkMode;

@@ -19,6 +19,7 @@ Future<void> main() async {
   await Hive.openBox<ExpenseModel>('expenses');
   await Hive.openBox<BudgetModel>('budgets');
   await Hive.openBox<MemberModel>('members');
+  await Hive.openBox<String>('settings');
 
   runApp(const ProviderScope(child: DevBudgetApp()));
 }
@@ -31,14 +32,25 @@ class DevBudgetApp extends StatefulWidget {
 }
 
 class _DevBudgetAppState extends State<DevBudgetApp> {
-  ThemeMode _themeMode = ThemeMode.light;
+  // Les réglages sont persistés si la box `settings` est ouverte (main).
+  Box<String>? get _settings =>
+      Hive.isBoxOpen('settings') ? Hive.box<String>('settings') : null;
+
+  late ThemeMode _themeMode;
   late final ValueNotifier<Currency> _currencyNotifier;
 
   @override
   void initState() {
     super.initState();
+    final settings = _settings;
+    _themeMode =
+        settings?.get('theme') == 'dark' ? ThemeMode.dark : ThemeMode.light;
+    final code = settings?.get('currency') ?? 'XAF';
     _currencyNotifier = ValueNotifier(
-      CurrencyService().findByCode('XAF')!,
+      CurrencyService().findByCode(code) ?? CurrencyService().findByCode('XAF')!,
+    );
+    _currencyNotifier.addListener(
+      () => _settings?.put('currency', _currencyNotifier.value.code),
     );
   }
 
@@ -60,9 +72,12 @@ class _DevBudgetAppState extends State<DevBudgetApp> {
         notifier: _currencyNotifier,
         child: HomeScreen(
           isDarkMode: _themeMode == ThemeMode.dark,
-          onThemeChanged: (isDark) => setState(
-            () => _themeMode = isDark ? ThemeMode.dark : ThemeMode.light,
-          ),
+          onThemeChanged: (isDark) {
+            _settings?.put('theme', isDark ? 'dark' : 'light');
+            setState(
+              () => _themeMode = isDark ? ThemeMode.dark : ThemeMode.light,
+            );
+          },
         ),
       ),
     );

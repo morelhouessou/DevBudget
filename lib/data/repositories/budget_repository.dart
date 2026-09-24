@@ -17,7 +17,7 @@ class BudgetRepository {
 
   /// Met à jour un budget déjà présent dans la box.
   Future<void> update(BudgetModel budget) async {
-    await budget.save();
+    await _box.put(budget.id, budget);
   }
 
   /// Supprime le budget correspondant à [id] de la box.

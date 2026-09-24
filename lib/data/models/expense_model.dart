@@ -28,6 +28,11 @@ class ExpenseModel extends HiveObject {
   @HiveField(5)
   String memberId;
 
+  /// Budget auquel la dépense est rattachée explicitement (optionnel).
+  /// Si `null`, le rattachement se fait par la période du budget.
+  @HiveField(6)
+  String? budgetId;
+
   ExpenseModel({
     required this.id,
     required this.title,
@@ -35,6 +40,7 @@ class ExpenseModel extends HiveObject {
     required this.category,
     required this.date,
     required this.memberId,
+    this.budgetId,
   });
 
   /// Retourne une copie de la dépense avec les champs fournis remplacés.
@@ -45,6 +51,8 @@ class ExpenseModel extends HiveObject {
     String? category,
     DateTime? date,
     String? memberId,
+    String? budgetId,
+    bool clearBudgetId = false,
   }) {
     return ExpenseModel(
       id: id,
@@ -53,6 +61,7 @@ class ExpenseModel extends HiveObject {
       category: category ?? this.category,
       date: date ?? this.date,
       memberId: memberId ?? this.memberId,
+      budgetId: clearBudgetId ? null : (budgetId ?? this.budgetId),
     );
   }
 
@@ -71,5 +80,5 @@ class ExpenseModel extends HiveObject {
   /// Représentation textuelle de la dépense pour faciliter le débogage et les logs.
   @override
   String toString() =>
-      'ExpenseModel(id: $id, title: $title, amount: $amount, category: $category, date: $date, memberId: $memberId)';
+      'ExpenseModel(id: $id, title: $title, amount: $amount, category: $category, date: $date, memberId: $memberId, budgetId: $budgetId)';
 }
