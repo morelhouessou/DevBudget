@@ -181,7 +181,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
   }) async {
     final titleController = TextEditingController(text: existing?.title);
     final amountController = TextEditingController(
-        text: existing == null ? null : existing.amount.toString());
+        text: existing?.amount.toString());
     final currencyCode = CurrencyScope.of(context).code;
     var category = existing?.category ?? expenseCategories.first;
     var date = existing?.date ?? DateTime.now();

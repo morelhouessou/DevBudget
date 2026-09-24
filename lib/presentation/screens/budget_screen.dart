@@ -95,7 +95,7 @@ class BudgetScreen extends ConsumerWidget {
   }) async {
     final nameController = TextEditingController(text: existing?.name);
     final amountController = TextEditingController(
-        text: existing == null ? null : existing.totalAmount.toString());
+        text: existing?.totalAmount.toString());
     final currencyCode = CurrencyScope.of(context).code;
     final formKey = GlobalKey<FormState>();
     final now = DateTime.now();
