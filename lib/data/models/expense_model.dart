@@ -33,6 +33,15 @@ class ExpenseModel extends HiveObject {
   @HiveField(6)
   String? budgetId;
 
+  /// `true` pour une entrée d'argent (revenu), `false` pour une dépense.
+  @HiveField(7, defaultValue: false)
+  bool isIncome;
+
+  /// Code devise du montant (ex: "XAF"). `null` = devise par défaut (XAF)
+  /// pour les données créées avant la gestion multi-devises.
+  @HiveField(8)
+  String? currency;
+
   ExpenseModel({
     required this.id,
     required this.title,
@@ -41,6 +50,8 @@ class ExpenseModel extends HiveObject {
     required this.date,
     required this.memberId,
     this.budgetId,
+    this.isIncome = false,
+    this.currency,
   });
 
   /// Retourne une copie de la dépense avec les champs fournis remplacés.
@@ -53,6 +64,8 @@ class ExpenseModel extends HiveObject {
     String? memberId,
     String? budgetId,
     bool clearBudgetId = false,
+    bool? isIncome,
+    String? currency,
   }) {
     return ExpenseModel(
       id: id,
@@ -62,6 +75,8 @@ class ExpenseModel extends HiveObject {
       date: date ?? this.date,
       memberId: memberId ?? this.memberId,
       budgetId: clearBudgetId ? null : (budgetId ?? this.budgetId),
+      isIncome: isIncome ?? this.isIncome,
+      currency: currency ?? this.currency,
     );
   }
 

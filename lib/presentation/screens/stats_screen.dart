@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/expense_model.dart';
+import '../../logic/money.dart';
 import '../../logic/providers/expense_provider.dart';
 import '../widgets/form_utils.dart';
 import 'home_screen.dart';
@@ -50,7 +51,7 @@ class StatsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final expenses = ref.watch(expenseListProvider);
+    final expenses = ref.watch(spendingProvider);
     final currency = CurrencyScope.of(context);
     final total = ref.watch(totalExpensesProvider);
     final categories = ref.watch(expensesByCategoryProvider);
@@ -78,7 +79,7 @@ class StatsScreen extends ConsumerWidget {
               child: _MetricCard(
                 icon: Icons.payments_outlined,
                 label: 'Total dépensé',
-                value: '${total.toStringAsFixed(2)} ${currency.code}',
+                value: formatMoney(total, currency.code),
               ),
             ),
             const SizedBox(width: 12),
@@ -277,7 +278,7 @@ class _MonthlyBarChart extends StatelessWidget {
           touchTooltipData: BarTouchTooltipData(
             getTooltipItem: (group, groupIndex, rod, rodIndex) =>
                 BarTooltipItem(
-              '${rod.toY.toStringAsFixed(2)} $currencyCode',
+              formatMoney(rod.toY, currencyCode),
               const TextStyle(fontWeight: FontWeight.bold),
             ),
           ),

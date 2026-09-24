@@ -43,10 +43,18 @@ IconData categoryIcon(String category) {
       return Icons.home_outlined;
     case 'Loisirs':
       return Icons.sports_esports_outlined;
+    case 'Salaire':
+      return Icons.payments_outlined;
+    case 'Prime':
+      return Icons.card_giftcard_outlined;
+    case 'Autre revenu':
+      return Icons.savings_outlined;
     default:
       return Icons.receipt_long_outlined;
   }
 }
+
+const incomeCategories = ['Salaire', 'Prime', 'Autre revenu'];
 
 const expenseCategories = [
   'Alimentation',

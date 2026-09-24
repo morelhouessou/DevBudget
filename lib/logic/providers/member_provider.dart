@@ -3,15 +3,16 @@ import 'package:hive/hive.dart';
 import 'package:uuid/uuid.dart';
 import '../../data/models/expense_model.dart';
 import '../../data/models/member_model.dart';
+import '../settlement.dart';
 import 'expense_provider.dart';
 
 final memberListProvider =
     StateNotifierProvider<MemberNotifier, List<MemberModel>>((ref) {
   final notifier = MemberNotifier(
     Hive.box<MemberModel>('members'),
-    ref.watch(expenseListProvider),
+    ref.watch(spendingProvider),
   );
-  ref.listen(expenseListProvider, (_, expenses) {
+  ref.listen(spendingProvider, (_, expenses) {
     notifier.updateExpenses(expenses);
   });
   return notifier;
@@ -58,6 +59,9 @@ class MemberNotifier extends StateNotifier<List<MemberModel>> {
     await _box.put(member.id, member);
     state = _box.values.toList();
   }
+
+  List<Transfer> get settlements =>
+      computeSettlements(state.map((member) => member.id).toList(), _expenses);
 
   int countByRole(MemberRole role) =>
       state.where((member) => member.role == role).length;

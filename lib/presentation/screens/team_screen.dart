@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/member_model.dart';
 import '../../logic/providers/member_provider.dart';
+import '../../logic/money.dart';
 import '../widgets/form_utils.dart';
 import 'home_screen.dart';
 
@@ -50,7 +51,7 @@ class TeamScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                '${memberNotifier.teamTotal.toStringAsFixed(2)} ${currency.code}',
+                formatMoney(memberNotifier.teamTotal, currency.code),
                 style: TextStyle(
                   color: colorScheme.onPrimary,
                   fontSize: 28,
@@ -117,6 +118,29 @@ class TeamScreen extends ConsumerWidget {
             ),
           ),
         ),
+        if (memberNotifier.settlements.isNotEmpty) ...[
+          const SizedBox(height: 22),
+          Text('Remboursements',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  )),
+          const SizedBox(height: 10),
+          Card(
+            child: Column(
+              children: [
+                for (final t in memberNotifier.settlements)
+                  ListTile(
+                    leading:
+                        Icon(Icons.swap_horiz, color: colorScheme.primary),
+                    title: Text(
+                        '${_nameOf(members, t.fromId)} doit '
+                        '${formatMoney(t.amount, currency.code)} '
+                        'à ${_nameOf(members, t.toId)}'),
+                  ),
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: 22),
         Text('Accès et rôles',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -155,6 +179,9 @@ class TeamScreen extends ConsumerWidget {
       ],
     );
   }
+
+  static String _nameOf(List<MemberModel> members, String id) =>
+      members.firstWhere((m) => m.id == id).name;
 
   Future<void> _showRoleSheet(
     BuildContext context,
@@ -296,7 +323,7 @@ class _MemberTile extends StatelessWidget {
           title:
               Text(name, style: const TextStyle(fontWeight: FontWeight.w700)),
           subtitle: Text(role),
-          trailing: Text('${spent.toStringAsFixed(2)} $currencyCode',
+          trailing: Text(formatMoney(spent, currencyCode),
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
                     fontWeight: FontWeight.w800,
                   )),

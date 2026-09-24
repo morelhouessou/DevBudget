@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/expense_model.dart';
 import '../../data/repositories/expense_repository.dart';
+import '../money.dart';
+import 'currency_provider.dart';
  
 /// Instance unique du repository des depenses (acces a la box Hive).
 final expenseRepositoryProvider = Provider<ExpenseRepository>((ref) {
@@ -38,26 +40,46 @@ class ExpenseNotifier extends StateNotifier<List<ExpenseModel>> {
 
 // Calculs derives ( logique metier)
  
-// Total de toutes les depenses enregistrees.
-final totalExpensesProvider = Provider<double>((ref) {
-  final expenses = ref.watch(expenseListProvider);
-  return expenses.fold<double>(0.0, (sum, e) => sum + e.amount);
+/// Toutes les operations (depenses et revenus) avec le montant converti dans
+/// la devise d'affichage. Base de tous les calculs : on ne cumule jamais des
+/// montants de devises differentes.
+final convertedExpensesProvider = Provider<List<ExpenseModel>>((ref) {
+  final display = ref.watch(displayCurrencyProvider);
+  final rates = ref.watch(ratesProvider);
+  return ref
+      .watch(expenseListProvider)
+      .map((e) => e.copyWith(
+            amount: convertAmount(
+                e.amount, e.currency ?? defaultCurrency, display, rates),
+            currency: display,
+          ))
+      .toList();
 });
- 
+
+/// Depenses uniquement (revenus exclus), converties.
+final spendingProvider = Provider<List<ExpenseModel>>((ref) =>
+    ref.watch(convertedExpensesProvider).where((e) => !e.isIncome).toList());
+
+/// Revenus uniquement, convertis.
+final incomeProvider = Provider<List<ExpenseModel>>((ref) =>
+    ref.watch(convertedExpensesProvider).where((e) => e.isIncome).toList());
+
+double sumOf(List<ExpenseModel> items) =>
+    items.fold<double>(0.0, (sum, e) => sum + e.amount);
+
+/// Total de toutes les depenses enregistrees.
+final totalExpensesProvider =
+    Provider<double>((ref) => sumOf(ref.watch(spendingProvider)));
+
+/// Total des revenus enregistres.
+final totalIncomeProvider =
+    Provider<double>((ref) => sumOf(ref.watch(incomeProvider)));
+
 /// Repartition des depenses par categorie, ex: {"Alimentation": 120.0, "Transport": 40.0}.
 final expensesByCategoryProvider = Provider<Map<String, double>>((ref) {
-  final expenses = ref.watch(expenseListProvider);
   final Map<String, double> result = {};
-  for (final e in expenses) {
+  for (final e in ref.watch(spendingProvider)) {
     result.update(e.category, (v) => v + e.amount, ifAbsent: () => e.amount);
   }
   return result;
-});
- 
-/// Depenses filtrees pour un membre donne (utile pour un suivi individuel
-/// au sein d'un budget d'equipe).
-final expensesByMemberProvider =
-    Provider.family<List<ExpenseModel>, String>((ref, memberId) {
-  final expenses = ref.watch(expenseListProvider);
-  return expenses.where((e) => e.memberId == memberId).toList();
 });

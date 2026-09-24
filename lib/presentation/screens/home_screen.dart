@@ -5,6 +5,8 @@ import 'budget_screen.dart';
 import 'stats_screen.dart';
 import 'team_screen.dart';
 import '../currency_scope.dart';
+import '../widgets/export_button.dart';
+import '../widgets/security_sheet.dart';
 
 export '../currency_scope.dart';
 
@@ -58,6 +60,12 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             icon: const Icon(Icons.currency_exchange, size: 18),
             label: Text(currency.code),
+          ),
+          const ExportButton(),
+          IconButton(
+            tooltip: 'Sécurité',
+            onPressed: () => showSecuritySheet(context),
+            icon: const Icon(Icons.lock_outline),
           ),
           IconButton(
             tooltip: 'Changer de thème',

@@ -1,9 +1,10 @@
+import 'package:currency_picker/currency_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../data/models/budget_model.dart';
+import '../../logic/money.dart';
 import '../../logic/providers/budget_provider.dart';
-import '../../logic/providers/expense_provider.dart';
 import '../widgets/form_utils.dart';
 import 'home_screen.dart';
 
@@ -13,7 +14,7 @@ class BudgetScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final budgets = ref.watch(budgetListProvider);
-    final expenses = ref.watch(expenseListProvider);
+    final statuses = ref.watch(budgetStatusesProvider);
     final currency = CurrencyScope.of(context);
 
     return Scaffold(
@@ -50,7 +51,8 @@ class BudgetScreen extends ConsumerWidget {
             )
           else
             ...budgets.map((budget) {
-              final spent = spentOfBudget(budget, expenses);
+              final status = statuses[budget.id] ??
+                  BudgetStatus(budget, budget.totalAmount, 0);
               return Dismissible(
                 key: ValueKey(budget.id),
                 background: Container(
@@ -71,8 +73,7 @@ class BudgetScreen extends ConsumerWidget {
                   );
                 },
                 child: _BudgetCard(
-                  budget: budget,
-                  spent: spent,
+                  status: status,
                   currencyCode: currency.code,
                   onTap: () => _showBudgetForm(context, ref, existing: budget),
                 ),
@@ -94,9 +95,13 @@ class BudgetScreen extends ConsumerWidget {
     BudgetModel? existing,
   }) async {
     final nameController = TextEditingController(text: existing?.name);
-    final amountController = TextEditingController(
-        text: existing?.totalAmount.toString());
-    final currencyCode = CurrencyScope.of(context).code;
+    final amountController =
+        TextEditingController(text: existing?.totalAmount.toString());
+    var currencyCode = existing == null
+        ? CurrencyScope.of(context).code
+        : existing.currency ?? defaultCurrency;
+    String? category = existing?.category;
+    var recurring = existing?.recurring ?? false;
     final formKey = GlobalKey<FormState>();
     final now = DateTime.now();
     var start = existing?.startDate ?? DateTime(now.year, now.month, 1);
@@ -106,7 +111,7 @@ class BudgetScreen extends ConsumerWidget {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      builder: (sheetContext) => Padding(
+      builder: (sheetContext) => SingleChildScrollView(
         padding: EdgeInsets.fromLTRB(
           20,
           20,
@@ -126,13 +131,48 @@ class BudgetScreen extends ConsumerWidget {
                     ? 'Saisissez un nom'
                     : null,
               ),
-              TextFormField(
-                controller: amountController,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                decoration: InputDecoration(
-                    labelText: 'Montant limite ($currencyCode)'),
-                validator: amountValidator,
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: amountController,
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      decoration:
+                          const InputDecoration(labelText: 'Montant limite'),
+                      validator: amountValidator,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton(
+                    onPressed: () => showCurrencyPicker(
+                      context: context,
+                      showFlag: true,
+                      showCurrencyName: true,
+                      showCurrencyCode: true,
+                      onSelect: (c) => setState(() => currencyCode = c.code),
+                    ),
+                    child: Text(currencyCode),
+                  ),
+                ],
+              ),
+              DropdownButtonFormField<String?>(
+                initialValue: category,
+                decoration: const InputDecoration(labelText: 'Catégorie'),
+                items: [
+                  const DropdownMenuItem<String?>(
+                      value: null, child: Text('Toutes les catégories')),
+                  ...expenseCategories.map((c) =>
+                      DropdownMenuItem<String?>(value: c, child: Text(c))),
+                ],
+                onChanged: (value) => setState(() => category = value),
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Budget mensuel'),
+                subtitle: const Text('Se renouvelle chaque mois'),
+                value: recurring,
+                onChanged: (value) => setState(() => recurring = value),
               ),
               Row(
                 children: [
@@ -189,6 +229,9 @@ class BudgetScreen extends ConsumerWidget {
                       startDate: start,
                       endDate: end,
                       ownerId: 'local-user',
+                      category: category,
+                      recurring: recurring,
+                      currency: currencyCode,
                     ));
                   } else {
                     await notifier.updateBudget(existing.copyWith(
@@ -196,6 +239,10 @@ class BudgetScreen extends ConsumerWidget {
                       totalAmount: amount,
                       startDate: start,
                       endDate: end,
+                      category: category,
+                      clearCategory: category == null,
+                      recurring: recurring,
+                      currency: currencyCode,
                     ));
                   }
 
@@ -216,14 +263,12 @@ class BudgetScreen extends ConsumerWidget {
 }
 
 class _BudgetCard extends StatelessWidget {
-  final BudgetModel budget;
-  final double spent;
+  final BudgetStatus status;
   final String currencyCode;
   final VoidCallback onTap;
 
   const _BudgetCard({
-    required this.budget,
-    required this.spent,
+    required this.status,
     required this.currencyCode,
     required this.onTap,
   });
@@ -231,15 +276,13 @@ class _BudgetCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final total = budget.totalAmount;
-    final ratio = total <= 0 ? 0.0 : spent / total;
-    final over = ratio > 1;
-    final color = over
+    final budget = status.budget;
+    final ratio = status.ratio;
+    final color = status.isOver
         ? scheme.error
-        : ratio >= 0.75
+        : status.isAlert
             ? Colors.orange.shade700
             : scheme.primary;
-    final remaining = total - spent;
     final dateFormat = DateFormat('dd/MM/yy');
 
     return Card(
@@ -256,7 +299,9 @@ class _BudgetCard extends StatelessWidget {
                   CircleAvatar(
                     backgroundColor: scheme.primaryContainer,
                     foregroundColor: scheme.onPrimaryContainer,
-                    child: const Icon(Icons.pie_chart_outline),
+                    child: Icon(budget.category == null
+                        ? Icons.pie_chart_outline
+                        : categoryIcon(budget.category!)),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -266,14 +311,18 @@ class _BudgetCard extends StatelessWidget {
                         Text(budget.name,
                             style: Theme.of(context).textTheme.titleMedium),
                         Text(
-                          '${dateFormat.format(budget.startDate)} - '
-                          '${dateFormat.format(budget.endDate)}',
+                          [
+                            '${dateFormat.format(budget.startDate)} - '
+                                '${dateFormat.format(budget.endDate)}',
+                            if (budget.category != null) budget.category!,
+                            if (budget.recurring) 'mensuel',
+                          ].join(' · '),
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ],
                     ),
                   ),
-                  Text('${total.toStringAsFixed(2)} $currencyCode',
+                  Text(formatMoney(status.total, currencyCode),
                       style: const TextStyle(fontWeight: FontWeight.bold)),
                 ],
               ),
@@ -291,15 +340,25 @@ class _BudgetCard extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('${(ratio * 100).toStringAsFixed(0)} % utilisé',
-                      style: Theme.of(context).textTheme.bodySmall),
-                  if (over)
+                  Row(
+                    children: [
+                      if (status.isAlert)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 4),
+                          child: Icon(Icons.warning_amber_rounded,
+                              size: 16, color: color),
+                        ),
+                      Text('${(ratio * 100).toStringAsFixed(0)} % utilisé',
+                          style: Theme.of(context).textTheme.bodySmall),
+                    ],
+                  ),
+                  if (status.isOver)
                     Text(
-                        'Dépassé de ${(-remaining).toStringAsFixed(0)} $currencyCode',
+                        'Dépassé de ${formatMoney(-status.remaining, currencyCode)}',
                         style: TextStyle(
                             color: scheme.error, fontWeight: FontWeight.w700))
                   else
-                    Text('Reste ${remaining.toStringAsFixed(0)} $currencyCode',
+                    Text('Reste ${formatMoney(status.remaining, currencyCode)}',
                         style: TextStyle(
                             color: color, fontWeight: FontWeight.w700)),
                 ],

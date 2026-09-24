@@ -1,7 +1,11 @@
+import 'package:currency_picker/currency_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../data/models/expense_model.dart';
+import '../../logic/money.dart';
+import '../../logic/notifications.dart';
+import '../brand.dart';
 import '../../logic/providers/budget_provider.dart';
 import '../../logic/providers/expense_provider.dart';
 import '../../logic/providers/member_provider.dart';
@@ -20,30 +24,38 @@ class ExpensesScreen extends ConsumerStatefulWidget {
 }
 
 class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
+  static const _incomeFilter = '__income';
+
   String _query = '';
+
+  /// Filtre actif : vide = tout, [_incomeFilter] = revenus, sinon une catégorie.
+  String _filter = '';
 
   @override
   Widget build(BuildContext context) {
     final expenses = ref.watch(expenseListProvider);
     final members = ref.watch(memberListProvider);
-    final total = expenses.fold<double>(0, (sum, item) => sum + item.amount);
+    final spending = ref.watch(spendingProvider);
+    final total = ref.watch(totalExpensesProvider);
+    final income = ref.watch(totalIncomeProvider);
     final currency = CurrencyScope.of(context);
     final scheme = Theme.of(context).colorScheme;
 
     final now = DateTime.now();
-    final monthTotal = expenses
+    final monthTotal = sumOf(spending
         .where((e) => e.date.year == now.year && e.date.month == now.month)
-        .fold<double>(0, (sum, e) => sum + e.amount);
+        .toList());
     final daysElapsed = now.day;
 
     final query = _query.trim().toLowerCase();
-    final visible = (query.isEmpty
-        ? [...expenses]
-        : expenses
-            .where((e) =>
+    final visible = expenses
+        .where((e) =>
+            (query.isEmpty ||
                 e.title.toLowerCase().contains(query) ||
-                e.category.toLowerCase().contains(query))
-            .toList())
+                e.category.toLowerCase().contains(query)) &&
+            (_filter.isEmpty ||
+                (_filter == _incomeFilter ? e.isIncome : e.category == _filter)))
+        .toList()
       ..sort((a, b) => b.date.compareTo(a.date));
 
     String? memberName(String id) {
@@ -65,9 +77,21 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
           const SizedBox(height: 4),
           Text('${expenses.length} opération(s) enregistrée(s)'),
           const SizedBox(height: 16),
-          Card(
+          Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              gradient: heroGradient,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: brandBlue.withValues(alpha: 0.3),
+                  blurRadius: 24,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
             child: Padding(
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -76,11 +100,12 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: scheme.primaryContainer,
+                          color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(14),
                         ),
-                        child: Icon(Icons.account_balance_wallet_outlined,
-                            color: scheme.onPrimaryContainer),
+                        child: const Icon(
+                            Icons.account_balance_wallet_outlined,
+                            color: Colors.white),
                       ),
                       const SizedBox(width: 14),
                       Expanded(
@@ -88,25 +113,46 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text('Total dépensé',
-                                style: Theme.of(context).textTheme.labelLarge),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelLarge
+                                    ?.copyWith(color: Colors.white70)),
                             const SizedBox(height: 4),
-                            Text('${total.toStringAsFixed(2)} ${currency.code}',
+                            Text(formatMoney(total, currency.code),
                                 style: Theme.of(context)
                                     .textTheme
                                     .headlineSmall
-                                    ?.copyWith(fontWeight: FontWeight.w800)),
+                                    ?.copyWith(
+                                        fontWeight: FontWeight.w800,
+                                        color: Colors.white)),
                           ],
                         ),
                       ),
-                      Icon(Icons.trending_up, color: scheme.primary),
+                      const Icon(Icons.trending_up, color: Colors.white),
                     ],
                   ),
-                  if (monthTotal > 0) ...[
-                    const SizedBox(height: 12),
+                  if (income > 0) ...[
+                    const SizedBox(height: 14),
                     Text(
-                      'Ce mois-ci : ${monthTotal.toStringAsFixed(0)} ${currency.code}'
-                      ' · moyenne ${(monthTotal / daysElapsed).toStringAsFixed(0)}/jour',
-                      style: Theme.of(context).textTheme.bodySmall,
+                      'Revenus : ${formatMoney(income, currency.code)}'
+                      ' · Solde : ${formatMoney(income - total, currency.code)}',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: income - total >= 0
+                                ? Colors.greenAccent.shade100
+                                : Colors.red.shade100,
+                          ),
+                    ),
+                  ],
+                  if (monthTotal > 0) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'Ce mois-ci : ${formatMoney(monthTotal, currency.code)}'
+                      ' · moyenne ${formatMoney(monthTotal / daysElapsed, currency.code)}/jour',
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: Colors.white70),
                     ),
                   ],
                 ],
@@ -120,6 +166,31 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
               decoration: const InputDecoration(
                 hintText: 'Rechercher une dépense',
                 prefixIcon: Icon(Icons.search),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (final (label, value) in [
+                    ('Tout', ''),
+                    ('Revenus', _incomeFilter),
+                    for (final c in expenseCategories) (c, c),
+                  ])
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        label: Text(label),
+                        selected: _filter == value,
+                        showCheckmark: false,
+                        labelStyle: TextStyle(
+                            color: _filter == value ? Colors.white : null,
+                            fontWeight: FontWeight.w600),
+                        onSelected: (_) => setState(() => _filter = value),
+                      ),
+                    ),
+                ],
               ),
             ),
           ],
@@ -150,7 +221,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                     if (!context.mounted) return;
                     showUndoSnackBar(
                       context,
-                      message: 'Dépense « ${expense.title} » supprimée',
+                      message: '« ${expense.title} » supprimé(e)',
                       onUndo: () => notifier.addExpense(expense),
                     );
                   },
@@ -159,6 +230,8 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                     category: expense.category,
                     date: expense.date,
                     amount: expense.amount,
+                    currencyCode: expense.currency ?? defaultCurrency,
+                    isIncome: expense.isIncome,
                     memberName: memberName(expense.memberId),
                     onTap: () =>
                         _showExpenseForm(context, ref, existing: expense),
@@ -174,15 +247,43 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
     );
   }
 
+  /// Prévient si l'opération enregistrée fait passer un budget en alerte.
+  void _alertBudgets(
+    ScaffoldMessengerState messenger,
+    ExpenseModel saved,
+  ) {
+    if (saved.isIncome) return;
+    BudgetStatus? worst;
+    for (final status in ref.read(budgetStatusesProvider).values) {
+      if (status.isAlert &&
+          budgetCounts(status.budget, saved) &&
+          (worst == null || status.ratio > worst.ratio)) {
+        worst = status;
+      }
+    }
+    if (worst == null) return;
+    final message = worst.isOver
+        ? 'Budget « ${worst.budget.name} » dépassé !'
+        : 'Budget « ${worst.budget.name} » à '
+            '${(worst.ratio * 100).toStringAsFixed(0)} %';
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+    notifyBudgetAlert('Alerte budget', message);
+  }
+
   Future<void> _showExpenseForm(
     BuildContext context,
     WidgetRef ref, {
     ExpenseModel? existing,
   }) async {
+    final messenger = ScaffoldMessenger.of(context);
     final titleController = TextEditingController(text: existing?.title);
-    final amountController = TextEditingController(
-        text: existing?.amount.toString());
-    final currencyCode = CurrencyScope.of(context).code;
+    final amountController =
+        TextEditingController(text: existing?.amount.toString());
+    var currencyCode =
+        existing == null ? CurrencyScope.of(context).code : existing.currency ?? defaultCurrency;
+    var isIncome = existing?.isIncome ?? false;
     var category = existing?.category ?? expenseCategories.first;
     var date = existing?.date ?? DateTime.now();
     var memberId = existing?.memberId ?? personalMemberId;
@@ -191,10 +292,6 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
     final members = ref.read(memberListProvider);
     final budgets = ref.read(budgetListProvider);
 
-    // Une catégorie ou un membre disparu doit rester sélectionnable.
-    final categories = expenseCategories.contains(category)
-        ? expenseCategories
-        : [...expenseCategories, category];
     final memberItems = <DropdownMenuItem<String>>[
       const DropdownMenuItem(value: personalMemberId, child: Text('Moi')),
       ...members.map(
@@ -217,107 +314,158 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
           MediaQuery.viewInsetsOf(sheetContext).bottom + 20,
         ),
         child: StatefulBuilder(
-          builder: (context, setState) => Form(
-            key: formKey,
-            child: Wrap(runSpacing: 12, children: [
-              Text(existing == null ? 'Nouvelle dépense' : 'Modifier la dépense',
-                  style: Theme.of(context).textTheme.titleLarge),
-              TextFormField(
-                controller: titleController,
-                decoration: const InputDecoration(labelText: 'Libellé'),
-                validator: (value) => value == null || value.trim().isEmpty
-                    ? 'Saisissez un libellé'
-                    : null,
-              ),
-              TextFormField(
-                controller: amountController,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                decoration:
-                    InputDecoration(labelText: 'Montant ($currencyCode)'),
-                validator: amountValidator,
-              ),
-              DropdownButtonFormField<String>(
-                initialValue: category,
-                decoration: const InputDecoration(labelText: 'Catégorie'),
-                items: categories
-                    .map((item) =>
-                        DropdownMenuItem(value: item, child: Text(item)))
-                    .toList(),
-                onChanged: (value) => setState(() => category = value!),
-              ),
-              if (members.isNotEmpty)
-                DropdownButtonFormField<String>(
-                  initialValue: memberId,
-                  decoration: const InputDecoration(labelText: 'Payé par'),
-                  items: memberItems,
-                  onChanged: (value) => setState(() => memberId = value!),
+          builder: (context, setState) {
+            // Une catégorie disparue doit rester sélectionnable.
+            final base = isIncome ? incomeCategories : expenseCategories;
+            final categories =
+                base.contains(category) ? base : [...base, category];
+            return Form(
+              key: formKey,
+              child: Wrap(runSpacing: 12, children: [
+                Text(
+                    existing == null
+                        ? 'Nouvelle opération'
+                        : 'Modifier l’opération',
+                    style: Theme.of(context).textTheme.titleLarge),
+                SizedBox(
+                  width: double.infinity,
+                  child: SegmentedButton<bool>(
+                    segments: const [
+                      ButtonSegment(value: false, label: Text('Dépense')),
+                      ButtonSegment(value: true, label: Text('Revenu')),
+                    ],
+                    selected: {isIncome},
+                    onSelectionChanged: (value) => setState(() {
+                      isIncome = value.first;
+                      category = isIncome
+                          ? incomeCategories.first
+                          : expenseCategories.first;
+                    }),
+                  ),
                 ),
-              if (budgets.isNotEmpty)
-                DropdownButtonFormField<String?>(
-                  initialValue: budgetId,
-                  decoration: const InputDecoration(labelText: 'Budget'),
-                  items: [
-                    const DropdownMenuItem<String?>(
-                        value: null, child: Text('Selon la période')),
-                    ...budgets.map((b) => DropdownMenuItem<String?>(
-                        value: b.id, child: Text(b.name))),
+                TextFormField(
+                  controller: titleController,
+                  decoration: const InputDecoration(labelText: 'Libellé'),
+                  validator: (value) => value == null || value.trim().isEmpty
+                      ? 'Saisissez un libellé'
+                      : null,
+                ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: amountController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
+                        decoration: const InputDecoration(labelText: 'Montant'),
+                        validator: amountValidator,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    OutlinedButton(
+                      onPressed: () => showCurrencyPicker(
+                        context: context,
+                        showFlag: true,
+                        showCurrencyName: true,
+                        showCurrencyCode: true,
+                        onSelect: (c) => setState(() => currencyCode = c.code),
+                      ),
+                      child: Text(currencyCode),
+                    ),
                   ],
-                  onChanged: (value) => setState(() => budgetId = value),
                 ),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.calendar_today_outlined),
-                title: Text(DateFormat('dd/MM/yyyy').format(date)),
-                onTap: () async {
-                  final picked = await showDatePicker(
-                    context: context,
-                    firstDate: DateTime(2020),
-                    lastDate: DateTime.now().isAfter(date)
-                        ? DateTime.now()
-                        : date,
-                    initialDate: date,
-                  );
-                  if (picked != null) setState(() => date = picked);
-                },
-              ),
-              FilledButton.icon(
-                onPressed: () async {
-                  if (!formKey.currentState!.validate()) return;
-                  final notifier = ref.read(expenseListProvider.notifier);
-                  final title = titleController.text.trim();
-                  final amount = parseAmount(amountController.text)!;
+                DropdownButtonFormField<String>(
+                  key: ValueKey(isIncome),
+                  initialValue: category,
+                  decoration: const InputDecoration(labelText: 'Catégorie'),
+                  items: categories
+                      .map((item) =>
+                          DropdownMenuItem(value: item, child: Text(item)))
+                      .toList(),
+                  onChanged: (value) => setState(() => category = value!),
+                ),
+                if (members.isNotEmpty)
+                  DropdownButtonFormField<String>(
+                    initialValue: memberId,
+                    decoration: InputDecoration(
+                        labelText: isIncome ? 'Reçu par' : 'Payé par'),
+                    items: memberItems,
+                    onChanged: (value) => setState(() => memberId = value!),
+                  ),
+                if (budgets.isNotEmpty && !isIncome)
+                  DropdownButtonFormField<String?>(
+                    initialValue: budgetId,
+                    decoration: const InputDecoration(labelText: 'Budget'),
+                    items: [
+                      const DropdownMenuItem<String?>(
+                          value: null, child: Text('Selon la période')),
+                      ...budgets.map((b) => DropdownMenuItem<String?>(
+                          value: b.id, child: Text(b.name))),
+                    ],
+                    onChanged: (value) => setState(() => budgetId = value),
+                  ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.calendar_today_outlined),
+                  title: Text(DateFormat('dd/MM/yyyy').format(date)),
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      firstDate: DateTime(2020),
+                      lastDate:
+                          DateTime.now().isAfter(date) ? DateTime.now() : date,
+                      initialDate: date,
+                    );
+                    if (picked != null) setState(() => date = picked);
+                  },
+                ),
+                FilledButton.icon(
+                  onPressed: () async {
+                    if (!formKey.currentState!.validate()) return;
+                    final notifier = ref.read(expenseListProvider.notifier);
+                    final title = titleController.text.trim();
+                    final amount = parseAmount(amountController.text)!;
+                    final effectiveBudget = isIncome ? null : budgetId;
 
-                  if (existing == null) {
-                    await notifier.addExpense(ExpenseModel(
-                      id: newId(),
-                      title: title,
-                      amount: amount,
-                      category: category,
-                      date: date,
-                      memberId: memberId,
-                      budgetId: budgetId,
-                    ));
-                  } else {
-                    await notifier.updateExpense(existing.copyWith(
-                      title: title,
-                      amount: amount,
-                      category: category,
-                      date: date,
-                      memberId: memberId,
-                      budgetId: budgetId,
-                      clearBudgetId: budgetId == null,
-                    ));
-                  }
+                    final ExpenseModel saved;
+                    if (existing == null) {
+                      saved = ExpenseModel(
+                        id: newId(),
+                        title: title,
+                        amount: amount,
+                        category: category,
+                        date: date,
+                        memberId: memberId,
+                        budgetId: effectiveBudget,
+                        isIncome: isIncome,
+                        currency: currencyCode,
+                      );
+                      await notifier.addExpense(saved);
+                    } else {
+                      saved = existing.copyWith(
+                        title: title,
+                        amount: amount,
+                        category: category,
+                        date: date,
+                        memberId: memberId,
+                        budgetId: effectiveBudget,
+                        clearBudgetId: effectiveBudget == null,
+                        isIncome: isIncome,
+                        currency: currencyCode,
+                      );
+                      await notifier.updateExpense(saved);
+                    }
 
-                  if (!sheetContext.mounted) return;
-                  Navigator.pop(sheetContext);
-                },
-                icon: const Icon(Icons.check),
-                label: const Text('Enregistrer'),
-              ),
-            ]),
-          ),
+                    _alertBudgets(messenger, saved);
+                    if (!sheetContext.mounted) return;
+                    Navigator.pop(sheetContext);
+                  },
+                  icon: const Icon(Icons.check),
+                  label: const Text('Enregistrer'),
+                ),
+              ]),
+            );
+          },
         ),
       ),
     );
