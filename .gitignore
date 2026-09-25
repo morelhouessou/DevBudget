@@ -4,3 +4,17 @@
 .packages
 build/
 .hive_test_tmp/
+
+# Fichiers de plugins générés par Flutter (recréés par `flutter pub get`)
+linux/flutter/generated_plugin_registrant.*
+linux/flutter/generated_plugins.cmake
+macos/Flutter/GeneratedPluginRegistrant.swift
+windows/flutter/generated_plugin_registrant.*
+windows/flutter/generated_plugins.cmake
+
+# Outils et fichiers locaux (compétences d'agents, config MCP, captures de design)
+.agents/
+.aider-desk/
+.mcp.json
+skills-lock.json
+assets/
