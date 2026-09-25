@@ -18,3 +18,4 @@ windows/flutter/generated_plugins.cmake
 .mcp.json
 skills-lock.json
 assets/
+windows/runner/grunner.exe.*
