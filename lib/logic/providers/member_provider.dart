@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import '../../data/models/expense_model.dart';
 import '../../data/models/member_model.dart';
 import '../settlement.dart';
+import '../sync/sync_service.dart';
 import 'expense_provider.dart';
 
 final memberListProvider =
@@ -52,11 +53,13 @@ class MemberNotifier extends StateNotifier<List<MemberModel>> {
       role: role,
     );
     await _box.put(member.id, member);
+    SyncOutbox.markUpsert('members', member.id);
     state = _box.values.toList();
   }
 
   Future<void> updateMember(MemberModel member) async {
     await _box.put(member.id, member);
+    SyncOutbox.markUpsert('members', member.id);
     state = _box.values.toList();
   }
 
@@ -68,6 +71,7 @@ class MemberNotifier extends StateNotifier<List<MemberModel>> {
 
   Future<void> deleteMember(String id) async {
     await _box.delete(id);
+    SyncOutbox.markDelete('members', id);
     state = _box.values.toList();
   }
 }

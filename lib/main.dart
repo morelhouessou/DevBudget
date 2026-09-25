@@ -5,7 +5,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'data/models/expense_model.dart';
 import 'data/models/budget_model.dart';
 import 'data/models/member_model.dart';
+import 'logic/providers/budget_provider.dart';
 import 'logic/providers/currency_provider.dart';
+import 'logic/providers/expense_provider.dart';
+import 'logic/providers/member_provider.dart';
+import 'logic/sync/sync_service.dart';
 import 'logic/notifications.dart';
 import 'presentation/app_gate.dart';
 import 'presentation/brand.dart';
@@ -25,6 +29,7 @@ Future<void> main() async {
   await Hive.openBox<MemberModel>('members');
   await Hive.openBox<String>('settings');
   await initNotifications();
+  await SyncService.instance.init();
 
   runApp(const ProviderScope(child: DevBudgetApp()));
 }
@@ -64,6 +69,16 @@ class _DevBudgetAppState extends State<DevBudgetApp> {
       _settings?.put('currency', code);
       container.read(displayCurrencyProvider.notifier).state = code;
     });
+
+    // Synchronisation : des données distantes rafraîchissent l'interface.
+    SyncService.instance.onRemoteChanges = () {
+      container.invalidate(expenseListProvider);
+      container.invalidate(budgetListProvider);
+      container.invalidate(memberListProvider);
+    };
+    if (settings != null && SyncService.instance.signedIn) {
+      SyncService.instance.sync();
+    }
   }
 
   @override

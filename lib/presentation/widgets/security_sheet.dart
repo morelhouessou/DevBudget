@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../logic/notifications.dart';
 import '../../logic/security.dart';
+import '../screens/account_screen.dart';
 import '../screens/pin_screens.dart';
 
 /// Réglages de sécurité : code PIN, empreinte digitale, alertes de budget.
@@ -23,6 +24,15 @@ Future<void> showSecuritySheet(BuildContext context) {
                 padding: const EdgeInsets.all(16),
                 child: Text('Sécurité',
                     style: Theme.of(context).textTheme.titleLarge),
+              ),
+              ListTile(
+                leading: const Icon(Icons.cloud_sync_outlined),
+                title: const Text('Compte et synchronisation'),
+                subtitle: const Text('Sauvegarde et multi-appareils'),
+                onTap: () => Navigator.push<void>(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AccountScreen()),
+                ),
               ),
               if (!Security.pinEnabled)
                 ListTile(

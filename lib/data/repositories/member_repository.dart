@@ -1,4 +1,5 @@
 import 'package:hive/hive.dart';
+import '../../logic/sync/sync_service.dart';
 import '../models/member_model.dart';
 
 /// Référentiel (repository) gérant l'accès aux données [MemberModel]
@@ -15,6 +16,7 @@ class MemberRepository {
   /// Ajoute (ou remplace si l'id existe déjà) un membre dans la box.
   Future<void> add(MemberModel member) async {
     await _box.put(member.id, member);
+    SyncOutbox.markUpsert('members', member.id);
   }
 
   /// Met à jour un membre déjà présent dans la box.
@@ -22,10 +24,12 @@ class MemberRepository {
   /// Écrit par clé : fonctionne aussi pour une copie issue de `copyWith`.
   Future<void> update(MemberModel member) async {
     await _box.put(member.id, member);
+    SyncOutbox.markUpsert('members', member.id);
   }
 
   /// Supprime le membre correspondant à [id] de la box.
   Future<void> delete(String id) async {
     await _box.delete(id);
+    SyncOutbox.markDelete('members', id);
   }
 }
