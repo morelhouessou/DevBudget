@@ -38,6 +38,18 @@ class BudgetModel extends HiveObject {
   @HiveField(7)
   bool isShared;
 
+  /// Si renseignée, seules les dépenses de cette catégorie comptent.
+  @HiveField(8)
+  String? category;
+
+  /// Budget mensuel : la période avance d'un mois quand elle est terminée.
+  @HiveField(9, defaultValue: false)
+  bool recurring;
+
+  /// Code devise du montant total. `null` = devise par défaut (XAF).
+  @HiveField(10)
+  String? currency;
+
   /// Crée un nouveau budget.
 
   /// [memberIds] et [isShared] sont optionnels : si `memberIds` est fourni
@@ -52,6 +64,9 @@ class BudgetModel extends HiveObject {
     required this.ownerId,
     List<String>? memberIds,
     bool? isShared,
+    this.category,
+    this.recurring = false,
+    this.currency,
   })  : memberIds = memberIds ?? [],
         isShared = isShared ?? (memberIds != null && memberIds.isNotEmpty);
 
@@ -67,6 +82,10 @@ class BudgetModel extends HiveObject {
     DateTime? endDate,
     List<String>? memberIds,
     bool? isShared,
+    String? category,
+    bool clearCategory = false,
+    bool? recurring,
+    String? currency,
   }) {
     return BudgetModel(
       id: id,
@@ -77,6 +96,9 @@ class BudgetModel extends HiveObject {
       ownerId: ownerId,
       memberIds: memberIds ?? this.memberIds,
       isShared: isShared ?? this.isShared,
+      category: clearCategory ? null : (category ?? this.category),
+      recurring: recurring ?? this.recurring,
+      currency: currency ?? this.currency,
     );
   }
 

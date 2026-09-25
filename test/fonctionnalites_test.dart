@@ -64,7 +64,7 @@ void main() {
         ExpenseModel(
           id: 'exp-1',
           title: 'Loyer',
-          amount: 120.5,
+          amount: 120,
           category: 'Logement',
           date: DateTime(2025, 1, 10),
           memberId: 'member-1',
@@ -77,8 +77,11 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
 
     expect(find.text('Loyer'), findsOneWidget);
-    expect(find.textContaining('120.50'), findsWidgets);
-    expect(find.textContaining('Logement'), findsOneWidget);
+    // XAF n'a pas de décimales ; espace fine insécable entre les milliers.
+    expect(find.textContaining('120 XAF'), findsWidgets);
+    // La ligne de la dépense (« Logement - date ») ; la pastille de filtre
+    // s'appelle exactement « Logement ».
+    expect(find.textContaining('Logement - '), findsOneWidget);
   });
   testWidgets('la liste des budgets affiche les informations de periode',
       (WidgetTester tester) async {
@@ -103,7 +106,8 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
 
     expect(find.text('Budget vacances'), findsOneWidget);
-    expect(find.textContaining('2400.00'), findsOneWidget);
+    expect(find.text('2 400 XAF'), findsOneWidget); // total
+    expect(find.text('Reste 2 400 XAF'), findsOneWidget); // rien dépensé
     expect(find.textContaining('01/01/25'), findsOneWidget);
   });
   testWidgets('la vue statistiques calcule les totaux et regroupements',
@@ -140,7 +144,7 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
 
     expect(find.text('Vue d’ensemble'), findsOneWidget);
-    expect(find.textContaining('150.00'), findsOneWidget);
+    expect(find.textContaining('150 XAF'), findsOneWidget);
     expect(find.text('Alimentation'), findsWidgets);
     expect(find.text('Transport'), findsOneWidget);
   });

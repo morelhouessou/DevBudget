@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/member_model.dart';
 import '../../logic/providers/member_provider.dart';
+import '../../logic/money.dart';
+import '../widgets/form_utils.dart';
 import 'home_screen.dart';
 
 class TeamScreen extends ConsumerWidget {
@@ -49,7 +51,7 @@ class TeamScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                '${memberNotifier.teamTotal.toStringAsFixed(2)} ${currency.code}',
+                formatMoney(memberNotifier.teamTotal, currency.code),
                 style: TextStyle(
                   color: colorScheme.onPrimary,
                   fontSize: 28,
@@ -93,7 +95,16 @@ class TeamScreen extends ConsumerWidget {
                 role: member.role.label,
                 currencyCode: currency.code,
                 spent: memberNotifier.spentByMember(member.id),
-                onDelete: () => memberNotifier.deleteMember(member.id),
+                onTap: () => _showRoleSheet(context, ref, member),
+                onDelete: () async {
+                  await memberNotifier.deleteMember(member.id);
+                  if (!context.mounted) return;
+                  showUndoSnackBar(
+                    context,
+                    message: '${member.name} retiré de l’équipe',
+                    onUndo: () => memberNotifier.updateMember(member),
+                  );
+                },
               )),
         const SizedBox(height: 8),
         OutlinedButton.icon(
@@ -107,6 +118,29 @@ class TeamScreen extends ConsumerWidget {
             ),
           ),
         ),
+        if (memberNotifier.settlements.isNotEmpty) ...[
+          const SizedBox(height: 22),
+          Text('Remboursements',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  )),
+          const SizedBox(height: 10),
+          Card(
+            child: Column(
+              children: [
+                for (final t in memberNotifier.settlements)
+                  ListTile(
+                    leading:
+                        Icon(Icons.swap_horiz, color: colorScheme.primary),
+                    title: Text(
+                        '${_nameOf(members, t.fromId)} doit '
+                        '${formatMoney(t.amount, currency.code)} '
+                        'à ${_nameOf(members, t.toId)}'),
+                  ),
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: 22),
         Text('Accès et rôles',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -121,7 +155,7 @@ class TeamScreen extends ConsumerWidget {
                     Icon(Icons.shield_outlined, color: colorScheme.primary),
                 title: const Text('Administrateurs'),
                 subtitle: const Text('Gèrent les budgets et les membres'),
-                trailing: const Text('0'),
+                trailing: Text('${memberNotifier.countByRole(MemberRole.admin)}'),
               ),
               Divider(height: 1, color: colorScheme.outlineVariant),
               ListTile(
@@ -129,7 +163,15 @@ class TeamScreen extends ConsumerWidget {
                     Icon(Icons.person_outline, color: colorScheme.secondary),
                 title: const Text('Membres actifs'),
                 subtitle: const Text('Peuvent ajouter leurs dépenses'),
-                trailing: Text('${members.length}'),
+                trailing: Text('${memberNotifier.countByRole(MemberRole.member)}'),
+              ),
+              Divider(height: 1, color: colorScheme.outlineVariant),
+              ListTile(
+                leading: Icon(Icons.visibility_outlined,
+                    color: colorScheme.tertiary),
+                title: const Text('Lecteurs'),
+                subtitle: const Text('Consultation en lecture seule'),
+                trailing: Text('${memberNotifier.countByRole(MemberRole.viewer)}'),
               ),
             ],
           ),
@@ -138,8 +180,46 @@ class TeamScreen extends ConsumerWidget {
     );
   }
 
+  static String _nameOf(List<MemberModel> members, String id) =>
+      members.firstWhere((m) => m.id == id).name;
+
+  Future<void> _showRoleSheet(
+    BuildContext context,
+    WidgetRef ref,
+    MemberModel member,
+  ) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text('Rôle de ${member.name}',
+                  style: Theme.of(context).textTheme.titleLarge),
+            ),
+            for (final role in MemberRole.values)
+              ListTile(
+                title: Text(role.label),
+                trailing: role == member.role ? const Icon(Icons.check) : null,
+                onTap: () async {
+                  await ref
+                      .read(memberListProvider.notifier)
+                      .updateMember(member.copyWith(role: role));
+                  if (!sheetContext.mounted) return;
+                  Navigator.pop(sheetContext);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _showInviteSheet(BuildContext context, WidgetRef ref) async {
     final nameController = TextEditingController();
+    var role = MemberRole.member;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -150,36 +230,45 @@ class TeamScreen extends ConsumerWidget {
           20,
           MediaQuery.viewInsetsOf(sheetContext).bottom + 20,
         ),
-        child: Wrap(
-          runSpacing: 14,
-          children: [
-            Text('Inviter un membre',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    )),
-            TextField(
-              controller: nameController,
-              textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(
-                labelText: 'Nom du membre',
-                prefixIcon: Icon(Icons.person_outline),
+        child: StatefulBuilder(
+          builder: (context, setState) => Wrap(
+            runSpacing: 14,
+            children: [
+              Text('Inviter un membre',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      )),
+              TextField(
+                controller: nameController,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'Nom du membre',
+                  prefixIcon: Icon(Icons.person_outline),
+                ),
               ),
-            ),
-            FilledButton.icon(
-              onPressed: () async {
-                final name = nameController.text.trim();
-                if (name.isEmpty) return;
-                await ref.read(memberListProvider.notifier).addMember(
-                      name: name,
-                      role: MemberRole.member,
-                    );
-                if (!sheetContext.mounted) return;
-                Navigator.pop(sheetContext);
-              },
-              icon: const Icon(Icons.send_outlined),
-              label: const Text('Ajouter à l’équipe'),
-            ),
-          ],
+              DropdownButtonFormField<MemberRole>(
+                initialValue: role,
+                decoration: const InputDecoration(labelText: 'Rôle'),
+                items: MemberRole.values
+                    .map((r) => DropdownMenuItem(value: r, child: Text(r.label)))
+                    .toList(),
+                onChanged: (value) => setState(() => role = value!),
+              ),
+              FilledButton.icon(
+                onPressed: () async {
+                  final name = nameController.text.trim();
+                  if (name.isEmpty) return;
+                  await ref
+                      .read(memberListProvider.notifier)
+                      .addMember(name: name, role: role);
+                  if (!sheetContext.mounted) return;
+                  Navigator.pop(sheetContext);
+                },
+                icon: const Icon(Icons.send_outlined),
+                label: const Text('Ajouter à l’équipe'),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -194,6 +283,7 @@ class _MemberTile extends StatelessWidget {
   final String currencyCode;
   final double spent;
   final VoidCallback onDelete;
+  final VoidCallback onTap;
 
   const _MemberTile({
     required this.id,
@@ -202,6 +292,7 @@ class _MemberTile extends StatelessWidget {
     required this.currencyCode,
     required this.spent,
     required this.onDelete,
+    required this.onTap,
   });
 
   @override
@@ -216,9 +307,11 @@ class _MemberTile extends StatelessWidget {
         color: Theme.of(context).colorScheme.errorContainer,
         child: const Icon(Icons.delete_outline),
       ),
+      direction: DismissDirection.endToStart,
       onDismissed: (_) => onDelete(),
       child: Card(
         child: ListTile(
+          onTap: onTap,
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
           leading: CircleAvatar(
@@ -230,7 +323,7 @@ class _MemberTile extends StatelessWidget {
           title:
               Text(name, style: const TextStyle(fontWeight: FontWeight.w700)),
           subtitle: Text(role),
-          trailing: Text('${spent.toStringAsFixed(2)} $currencyCode',
+          trailing: Text(formatMoney(spent, currencyCode),
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
                     fontWeight: FontWeight.w800,
                   )),

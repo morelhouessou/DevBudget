@@ -4,24 +4,11 @@ import 'expenses_screen.dart';
 import 'budget_screen.dart';
 import 'stats_screen.dart';
 import 'team_screen.dart';
+import '../currency_scope.dart';
+import '../widgets/export_button.dart';
+import '../widgets/security_sheet.dart';
 
-class CurrencyScope extends InheritedNotifier<ValueNotifier<Currency>> {
-  const CurrencyScope({
-    super.key,
-    required ValueNotifier<Currency> notifier,
-    required super.child,
-  }) : super(notifier: notifier);
-
-  static Currency of(BuildContext context) {
-    final scope = context.dependOnInheritedWidgetOfExactType<CurrencyScope>();
-    return scope!.notifier!.value;
-  }
-
-  static void update(BuildContext context, Currency currency) {
-    final scope = context.findAncestorWidgetOfExactType<CurrencyScope>();
-    scope?.notifier?.value = currency;
-  }
-}
+export '../currency_scope.dart';
 
 class HomeScreen extends StatefulWidget {
   final bool isDarkMode;
@@ -73,6 +60,12 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             icon: const Icon(Icons.currency_exchange, size: 18),
             label: Text(currency.code),
+          ),
+          const ExportButton(),
+          IconButton(
+            tooltip: 'Sécurité',
+            onPressed: () => showSecuritySheet(context),
+            icon: const Icon(Icons.lock_outline),
           ),
           IconButton(
             tooltip: 'Changer de thème',

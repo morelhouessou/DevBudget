@@ -1,6 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Réseau : taux de change et synchronisation (absent en release par défaut). -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Verrouillage par empreinte digitale (local_auth). -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
+    <!-- Alertes de budget (Android 13+, demandée à l'exécution). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
-        android:label="devbudget"
+        android:label="DevBudget"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

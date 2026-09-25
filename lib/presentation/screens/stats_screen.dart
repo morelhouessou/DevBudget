@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/expense_model.dart';
+import '../../logic/money.dart';
 import '../../logic/providers/expense_provider.dart';
+import '../widgets/form_utils.dart';
 import 'home_screen.dart';
 
 class StatsScreen extends ConsumerWidget {
@@ -35,9 +37,21 @@ class StatsScreen extends ConsumerWidget {
     Color(0xffa66a9f),
   ];
 
+  static const _monthLabels = [
+    'Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin',
+    'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc',
+  ];
+
+  /// Couleur stable d'une catégorie, indépendante de l'ordre des données.
+  static Color colorFor(String category) {
+    final known = expenseCategories.indexOf(category);
+    final index = known >= 0 ? known : expenseCategories.length;
+    return _categoryColors[index % _categoryColors.length];
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final expenses = ref.watch(expenseListProvider);
+    final expenses = ref.watch(spendingProvider);
     final currency = CurrencyScope.of(context);
     final total = ref.watch(totalExpensesProvider);
     final categories = ref.watch(expensesByCategoryProvider);
@@ -65,7 +79,7 @@ class StatsScreen extends ConsumerWidget {
               child: _MetricCard(
                 icon: Icons.payments_outlined,
                 label: 'Total dépensé',
-                value: '${total.toStringAsFixed(2)} ${currency.code}',
+                value: formatMoney(total, currency.code),
               ),
             ),
             const SizedBox(width: 12),
@@ -186,16 +200,14 @@ class _CategoryChart extends StatelessWidget {
         PieChartData(
           sectionsSpace: 3,
           centerSpaceRadius: 42,
-          sections: data.entries.toList().asMap().entries.map((entry) {
-            final color = StatsScreen._categoryColors[
-                entry.key % StatsScreen._categoryColors.length];
-            return PieChartSectionData(
-              value: entry.value.value,
-              color: color,
-              radius: 34,
-              showTitle: false,
-            );
-          }).toList(),
+          sections: data.entries
+              .map((entry) => PieChartSectionData(
+                    value: entry.value,
+                    color: StatsScreen.colorFor(entry.key),
+                    radius: 34,
+                    showTitle: false,
+                  ))
+              .toList(),
         ),
       );
 }
@@ -210,10 +222,9 @@ class _CategoryLegend extends StatelessWidget {
     final total = data.values.fold<double>(0, (sum, value) => sum + value);
     return ListView(
       padding: const EdgeInsets.only(left: 8),
-      children: data.entries.toList().asMap().entries.map((entry) {
-        final color = StatsScreen
-            ._categoryColors[entry.key % StatsScreen._categoryColors.length];
-        final percentage = total == 0 ? 0 : entry.value.value / total * 100;
+      children: data.entries.map((entry) {
+        final color = StatsScreen.colorFor(entry.key);
+        final percentage = total == 0 ? 0 : entry.value / total * 100;
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 5),
           child: Row(
@@ -222,7 +233,7 @@ class _CategoryLegend extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  entry.value.key,
+                  entry.key,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -267,23 +278,38 @@ class _MonthlyBarChart extends StatelessWidget {
           touchTooltipData: BarTouchTooltipData(
             getTooltipItem: (group, groupIndex, rod, rodIndex) =>
                 BarTooltipItem(
-              '${rod.toY.toStringAsFixed(2)} $currencyCode',
+              formatMoney(rod.toY, currencyCode),
               const TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
         ),
-        titlesData: const FlTitlesData(
-          leftTitles: AxisTitles(
+        titlesData: FlTitlesData(
+          leftTitles: const AxisTitles(
             sideTitles: SideTitles(showTitles: false),
           ),
-          rightTitles: AxisTitles(
+          rightTitles: const AxisTitles(
             sideTitles: SideTitles(showTitles: false),
           ),
-          topTitles: AxisTitles(
+          topTitles: const AxisTitles(
             sideTitles: SideTitles(showTitles: false),
           ),
           bottomTitles: AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
+            sideTitles: SideTitles(
+              showTitles: true,
+              getTitlesWidget: (value, meta) {
+                final index = value.toInt();
+                if (index < 0 || index >= sortedDates.length) {
+                  return const SizedBox.shrink();
+                }
+                return Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    StatsScreen._monthLabels[sortedDates[index].month - 1],
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                );
+              },
+            ),
           ),
         ),
         barGroups: sortedDates.asMap().entries.map((entry) {

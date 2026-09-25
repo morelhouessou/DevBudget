@@ -1,5 +1,6 @@
 package com.example.devbudget
 
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 
-class MainActivity : FlutterActivity()
+// local_auth (empreinte digitale) exige une FragmentActivity.
+class MainActivity : FlutterFragmentActivity()

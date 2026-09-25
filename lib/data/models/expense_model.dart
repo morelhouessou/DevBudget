@@ -28,6 +28,20 @@ class ExpenseModel extends HiveObject {
   @HiveField(5)
   String memberId;
 
+  /// Budget auquel la dépense est rattachée explicitement (optionnel).
+  /// Si `null`, le rattachement se fait par la période du budget.
+  @HiveField(6)
+  String? budgetId;
+
+  /// `true` pour une entrée d'argent (revenu), `false` pour une dépense.
+  @HiveField(7, defaultValue: false)
+  bool isIncome;
+
+  /// Code devise du montant (ex: "XAF"). `null` = devise par défaut (XAF)
+  /// pour les données créées avant la gestion multi-devises.
+  @HiveField(8)
+  String? currency;
+
   ExpenseModel({
     required this.id,
     required this.title,
@@ -35,6 +49,9 @@ class ExpenseModel extends HiveObject {
     required this.category,
     required this.date,
     required this.memberId,
+    this.budgetId,
+    this.isIncome = false,
+    this.currency,
   });
 
   /// Retourne une copie de la dépense avec les champs fournis remplacés.
@@ -45,6 +62,10 @@ class ExpenseModel extends HiveObject {
     String? category,
     DateTime? date,
     String? memberId,
+    String? budgetId,
+    bool clearBudgetId = false,
+    bool? isIncome,
+    String? currency,
   }) {
     return ExpenseModel(
       id: id,
@@ -53,6 +74,9 @@ class ExpenseModel extends HiveObject {
       category: category ?? this.category,
       date: date ?? this.date,
       memberId: memberId ?? this.memberId,
+      budgetId: clearBudgetId ? null : (budgetId ?? this.budgetId),
+      isIncome: isIncome ?? this.isIncome,
+      currency: currency ?? this.currency,
     );
   }
 
@@ -71,5 +95,5 @@ class ExpenseModel extends HiveObject {
   /// Représentation textuelle de la dépense pour faciliter le débogage et les logs.
   @override
   String toString() =>
-      'ExpenseModel(id: $id, title: $title, amount: $amount, category: $category, date: $date, memberId: $memberId)';
+      'ExpenseModel(id: $id, title: $title, amount: $amount, category: $category, date: $date, memberId: $memberId, budgetId: $budgetId)';
 }

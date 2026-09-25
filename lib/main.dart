@@ -5,7 +5,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'data/models/expense_model.dart';
 import 'data/models/budget_model.dart';
 import 'data/models/member_model.dart';
-import 'presentation/screens/home_screen.dart';
+import 'logic/providers/budget_provider.dart';
+import 'logic/providers/currency_provider.dart';
+import 'logic/providers/expense_provider.dart';
+import 'logic/providers/member_provider.dart';
+import 'logic/sync/sync_service.dart';
+import 'logic/notifications.dart';
+import 'presentation/app_gate.dart';
+import 'presentation/brand.dart';
+import 'presentation/screens/home_screen.dart' show CurrencyScope;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,6 +27,9 @@ Future<void> main() async {
   await Hive.openBox<ExpenseModel>('expenses');
   await Hive.openBox<BudgetModel>('budgets');
   await Hive.openBox<MemberModel>('members');
+  await Hive.openBox<String>('settings');
+  await initNotifications();
+  await SyncService.instance.init();
 
   runApp(const ProviderScope(child: DevBudgetApp()));
 }
@@ -31,15 +42,43 @@ class DevBudgetApp extends StatefulWidget {
 }
 
 class _DevBudgetAppState extends State<DevBudgetApp> {
-  ThemeMode _themeMode = ThemeMode.light;
+  // Les réglages sont persistés si la box `settings` est ouverte (main).
+  Box<String>? get _settings =>
+      Hive.isBoxOpen('settings') ? Hive.box<String>('settings') : null;
+
+  late ThemeMode _themeMode;
   late final ValueNotifier<Currency> _currencyNotifier;
 
   @override
   void initState() {
     super.initState();
+    final settings = _settings;
+    // Sombre par défaut (identité visuelle), sauf choix contraire mémorisé.
+    _themeMode =
+        settings?.get('theme') == 'light' ? ThemeMode.light : ThemeMode.dark;
+    final code = settings?.get('currency') ?? 'XAF';
     _currencyNotifier = ValueNotifier(
-      CurrencyService().findByCode('XAF')!,
+      CurrencyService().findByCode(code) ?? CurrencyService().findByCode('XAF')!,
     );
+    // La devise choisie alimente aussi les calculs (providers Riverpod).
+    final container = ProviderScope.containerOf(context, listen: false);
+    container.read(displayCurrencyProvider.notifier).state =
+        _currencyNotifier.value.code;
+    _currencyNotifier.addListener(() {
+      final code = _currencyNotifier.value.code;
+      _settings?.put('currency', code);
+      container.read(displayCurrencyProvider.notifier).state = code;
+    });
+
+    // Synchronisation : des données distantes rafraîchissent l'interface.
+    SyncService.instance.onRemoteChanges = () {
+      container.invalidate(expenseListProvider);
+      container.invalidate(budgetListProvider);
+      container.invalidate(memberListProvider);
+    };
+    if (settings != null && SyncService.instance.signedIn) {
+      SyncService.instance.sync();
+    }
   }
 
   @override
@@ -58,11 +97,14 @@ class _DevBudgetAppState extends State<DevBudgetApp> {
       darkTheme: _buildTheme(Brightness.dark),
       home: CurrencyScope(
         notifier: _currencyNotifier,
-        child: HomeScreen(
+        child: AppGate(
           isDarkMode: _themeMode == ThemeMode.dark,
-          onThemeChanged: (isDark) => setState(
-            () => _themeMode = isDark ? ThemeMode.dark : ThemeMode.light,
-          ),
+          onThemeChanged: (isDark) {
+            _settings?.put('theme', isDark ? 'dark' : 'light');
+            setState(
+              () => _themeMode = isDark ? ThemeMode.dark : ThemeMode.light,
+            );
+          },
         ),
       ),
     );
@@ -71,15 +113,14 @@ class _DevBudgetAppState extends State<DevBudgetApp> {
   ThemeData _buildTheme(Brightness brightness) {
     final isDark = brightness == Brightness.dark;
     final scheme = ColorScheme.fromSeed(
-      seedColor: const Color(0xff087f73),
+      seedColor: brandBlue,
       brightness: brightness,
-    );
+    ).copyWith(primary: brandBlue, onPrimary: Colors.white);
     final base = ThemeData(
       colorScheme: scheme,
       brightness: brightness,
       useMaterial3: true,
-      scaffoldBackgroundColor:
-          isDark ? const Color(0xff0d1718) : const Color(0xfff5f8f7),
+      scaffoldBackgroundColor: isDark ? brandNavy : const Color(0xfff2f5fd),
     );
     return base.copyWith(
       appBarTheme: AppBarTheme(
@@ -95,14 +136,25 @@ class _DevBudgetAppState extends State<DevBudgetApp> {
         ),
       ),
       cardTheme: CardThemeData(
-        color: isDark ? const Color(0xff152324) : Colors.white,
+        color: isDark ? brandCard : Colors.white,
         elevation: 0,
         margin: const EdgeInsets.only(bottom: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(
+              color: isDark ? brandCardBorder : const Color(0xffe1e7f8)),
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: isDark ? brandCard : Colors.white,
+        selectedColor: brandBlue,
+        side: BorderSide(
+            color: isDark ? brandCardBorder : const Color(0xffe1e7f8)),
+        shape: const StadiumBorder(),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: isDark ? const Color(0xff122020) : Colors.white,
-        indicatorColor: scheme.secondaryContainer,
+        backgroundColor: isDark ? const Color(0xff0c1330) : Colors.white,
+        indicatorColor: brandBlue.withValues(alpha: 0.28),
         elevation: 0,
         labelTextStyle: WidgetStatePropertyAll(
           TextStyle(
@@ -119,7 +171,7 @@ class _DevBudgetAppState extends State<DevBudgetApp> {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: isDark ? const Color(0xff1d2d2e) : const Color(0xffedf3f1),
+        fillColor: isDark ? const Color(0xff141f45) : const Color(0xffe8edfb),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide.none,

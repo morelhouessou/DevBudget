@@ -25,13 +25,16 @@ class BudgetModelAdapter extends TypeAdapter<BudgetModel> {
       ownerId: fields[5] as String,
       memberIds: (fields[6] as List?)?.cast<String>(),
       isShared: fields[7] as bool?,
+      category: fields[8] as String?,
+      recurring: fields[9] == null ? false : fields[9] as bool,
+      currency: fields[10] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, BudgetModel obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(11)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -47,7 +50,13 @@ class BudgetModelAdapter extends TypeAdapter<BudgetModel> {
       ..writeByte(6)
       ..write(obj.memberIds)
       ..writeByte(7)
-      ..write(obj.isShared);
+      ..write(obj.isShared)
+      ..writeByte(8)
+      ..write(obj.category)
+      ..writeByte(9)
+      ..write(obj.recurring)
+      ..writeByte(10)
+      ..write(obj.currency);
   }
 
   @override

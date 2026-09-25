@@ -1,4 +1,5 @@
 import 'package:hive/hive.dart';
+import '../../logic/sync/sync_service.dart';
 import '../models/budget_model.dart';
 
 class BudgetRepository {
@@ -13,16 +14,19 @@ class BudgetRepository {
   /// Ajoute (ou remplace si l'id existe déjà) un budget dans la box.
   Future<void> add(BudgetModel budget) async {
     await _box.put(budget.id, budget);
+    SyncOutbox.markUpsert('budgets', budget.id);
   }
 
   /// Met à jour un budget déjà présent dans la box.
   Future<void> update(BudgetModel budget) async {
-    await budget.save();
+    await _box.put(budget.id, budget);
+    SyncOutbox.markUpsert('budgets', budget.id);
   }
 
   /// Supprime le budget correspondant à [id] de la box.
   Future<void> delete(String id) async {
     await _box.delete(id);
+    SyncOutbox.markDelete('budgets', id);
   }
 
   /// Ajoute [memberId] à la liste des membres ayant accès au budget [budgetId].
@@ -41,7 +45,7 @@ class BudgetRepository {
       isShared: true,
     );
 
-    await _box.put(budgetId, updatedBudget);
+    await update(updatedBudget);
   }
 
   /// Retire [memberId] de la liste des membres ayant accès au budget [budgetId].
@@ -59,6 +63,6 @@ class BudgetRepository {
       isShared: updatedMemberIds.isNotEmpty,
     );
 
-    await _box.put(budgetId, updatedBudget);
+    await update(updatedBudget);
   }
 }
